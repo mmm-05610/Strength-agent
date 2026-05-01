@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+*.db
+.env
+.venv/
+venv/
+
+# Node / Desktop
+node_modules/
+desktop/dist/
+desktop/src-tauri/target/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads & runtime
+mvp/backend/uploads/*
+!mvp/backend/uploads/.gitkeep
+
+# Logs
+*.log
+nul
+_references/

@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: fitness-agent-postgres
+    environment:
+      POSTGRES_DB: fitness_agent
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - fitness_agent_pgdata:/var/lib/postgresql/data
+
+volumes:
+  fitness_agent_pgdata:

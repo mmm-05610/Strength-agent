@@ -1,0 +1,42 @@
+{
+  "theme": "athletic-control-room-light",
+  "color": {
+    "bg": "#f8fbff",
+    "bgSoft": "#eef4ff",
+    "surface": "#ffffff",
+    "surfaceStrong": "#f5f8ff",
+    "text": "#1d2a3f",
+    "textMuted": "#5d6d87",
+    "brand": "#0ea5e9",
+    "brandStrong": "#0284c7",
+    "accent": "#f97316",
+    "danger": "#dc2626",
+    "border": "#d5dfef",
+    "focus": "#0284c7"
+  },
+  "typography": {
+    "display": "Chivo",
+    "body": "Chivo",
+    "mono": "IBM Plex Mono",
+    "h1": "34/1.1/900",
+    "h2": "18/1.2/700",
+    "bodyText": "14/1.5/400",
+    "caption": "12/1.4/600"
+  },
+  "spacing": {
+    "xs": 6,
+    "sm": 10,
+    "md": 14,
+    "lg": 20,
+    "xl": 28
+  },
+  "radius": {
+    "card": 18,
+    "input": 12,
+    "pill": 999
+  },
+  "breakpoints": {
+    "mobile": 780,
+    "tablet": 1080
+  }
+}

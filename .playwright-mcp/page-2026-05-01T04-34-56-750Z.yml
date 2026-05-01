@@ -1,0 +1,205 @@
+- generic [ref=e1]:
+    - generic [ref=e3]:
+        - generic [ref=e4]:
+            - generic [ref=e6]:
+                - navigation [ref=e30]:
+                    - generic [ref=e31]: 数据看板
+                    - button "总览" [ref=e32] [cursor=pointer]:
+                        - img [ref=e33]
+                        - text: 总览
+                    - button "身体" [ref=e38] [cursor=pointer]:
+                        - img [ref=e39]
+                        - text: 身体
+                    - button "饮食" [active] [ref=e41] [cursor=pointer]:
+                        - img [ref=e42]
+                        - text: 饮食
+                    - button "训练" [ref=e47] [cursor=pointer]:
+                        - img [ref=e48]
+                        - text: 训练
+                    - button "恢复" [ref=e54] [cursor=pointer]:
+                        - img [ref=e55]
+                        - text: 恢复
+                    - button "目标" [ref=e57] [cursor=pointer]:
+                        - img [ref=e58]
+                        - text: 目标
+                - generic [ref=e63]:
+                    - heading "饮食摄入" [level=2] [ref=e64]
+                    - generic [ref=e66]:
+                        - generic [ref=e67]:
+                            - img [ref=e68]
+                            - generic [ref=e71]:
+                                - generic [ref=e72]: "2500"
+                                - generic [ref=e73]: / 2800 kcal
+                                - generic [ref=e74]: 89%
+                        - generic [ref=e75]:
+                            - generic [ref=e76]: 今日 2500 kcal
+                            - generic [ref=e78]:
+                                - generic [ref=e79]: 蛋白质
+                                - generic [ref=e80]:
+                                    - text: "160"
+                                    - generic [ref=e81]: /130g
+                                    - generic [ref=e82]: 100%
+                            - generic [ref=e86]:
+                                - generic [ref=e87]: 碳水
+                                - generic [ref=e88]:
+                                    - text: "250"
+                                    - generic [ref=e89]: /350g
+                                    - generic [ref=e90]: 71%
+                            - generic [ref=e94]:
+                                - generic [ref=e95]: 脂肪
+                                - generic [ref=e96]:
+                                    - text: "70"
+                                    - generic [ref=e97]: /80g
+                                    - generic [ref=e98]: 88%
+                            - generic [ref=e102]:
+                                - text: 水分
+                                - strong [ref=e103]: 2.6L
+                                - generic [ref=e104]: / 3L
+                    - generic [ref=e105]:
+                        - generic [ref=e106]: 热量趋势
+                        - application [ref=e109]:
+                            - generic [ref=e205]:
+                                - generic [ref=e207]: 04-02
+                                - generic [ref=e209]: 04-07
+                                - generic [ref=e211]: 04-12
+                                - generic [ref=e213]: 04-16
+                                - generic [ref=e215]: 04-21
+                                - generic [ref=e217]: 04-26
+                    - generic [ref=e218]:
+                        - generic [ref=e219]: 宏量营养素趋势
+                        - application [ref=e222]:
+                            - generic [ref=e234]:
+                                - generic [ref=e236]: 04-02
+                                - generic [ref=e238]: 04-07
+                                - generic [ref=e240]: 04-12
+                                - generic [ref=e242]: 04-16
+                                - generic [ref=e244]: 04-21
+                                - generic [ref=e246]: 04-26
+                    - generic [ref=e247]:
+                        - generic [ref=e248]: 统计摘要
+                        - generic [ref=e249]:
+                            - button "7天" [ref=e250] [cursor=pointer]
+                            - button "30天" [ref=e251] [cursor=pointer]
+                        - generic [ref=e252]:
+                            - generic [ref=e253]:
+                                - generic [ref=e254]: "2770"
+                                - generic [ref=e255]: 7天日均热量 (kcal)
+                            - generic [ref=e256]:
+                                - generic [ref=e257]: "141"
+                                - generic [ref=e258]: 日均蛋白质 (g)
+                            - generic [ref=e259]:
+                                - generic [ref=e260]: 7/7
+                                - generic [ref=e261]: 达标天数 (±15%)
+                    - generic [ref=e262]:
+                        - generic [ref=e263]: 增肌饮食策略
+                        - generic [ref=e264]:
+                            - generic [ref=e265]:
+                                - strong [ref=e266]: 每日热量
+                                - text: ：2800 kcal（热量盈余 ~300 kcal）
+                            - generic [ref=e267]:
+                                - strong [ref=e268]: 蛋白质
+                                - text: ：130g（2.0g/kg）
+                            - generic [ref=e269]:
+                                - strong [ref=e270]: 碳水
+                                - text: ：350g（训练日可适量增加）
+                            - generic [ref=e271]:
+                                - strong [ref=e272]: 脂肪
+                                - text: ：80g（优先不饱和脂肪酸）
+                            - generic [ref=e273]:
+                                - strong [ref=e274]: 水分
+                                - text: ：3L（训练日额外补充 0.5-1L）
+                    - button "记录今日饮食" [ref=e276] [cursor=pointer]:
+                        - img [ref=e277]
+                        - text: 记录今日饮食
+            - generic [ref=e10]:
+                - generic [ref=e12]: 对话
+                - generic [ref=e13]:
+                    - generic [ref=e278]:
+                        - generic [ref=e279]:
+                            - generic [ref=e280]: 你
+                            - generic [ref=e281]: 04-30 07:24
+                        - generic [ref=e282]: 你好
+                    - generic [ref=e283]:
+                        - generic [ref=e284]:
+                            - generic [ref=e285]: 你
+                            - generic [ref=e286]: 04-30 07:25
+                        - generic [ref=e287]: 你好
+                    - generic [ref=e288]:
+                        - generic [ref=e289]:
+                            - generic [ref=e290]: 你
+                            - generic [ref=e291]: 04-30 07:26
+                        - generic [ref=e292]: "1"
+                    - generic [ref=e293]:
+                        - generic [ref=e294]:
+                            - generic [ref=e295]: 你
+                            - generic [ref=e296]: 04-30 08:16
+                        - generic [ref=e297]: "1111"
+                    - generic [ref=e298]:
+                        - generic [ref=e299]:
+                            - generic [ref=e300]: AI 教练
+                            - generic [ref=e301]: 04-30 08:16
+                        - generic [ref=e302]: 你好！很高兴见到你，作为你的力量与体能教练，我会根据你的目标（增肌至73kg，截止2026年7月1日）和当前数据（体重65kg，体脂11.4%，肌肉量30.6kg）来提供专业建议。 **当前关键分析：** - 你目前处于**低体脂、低肌肉量**状态，增肌潜力大，但需要**热量盈余**和**渐进超负荷**训练。 - 目标体重差8kg，时间约16个月，平均每月需增重0.5kg（其中约0.3-0.4kg应为肌肉）。 - 体脂11.4%较低，可适当提高至14-15%以支持增肌效率，不必担心脂肪增加。 **第一步行动建议：** 1. **饮食调整**：每日摄入比维持热量多300-500大卡，重点增加蛋白质（每公斤体重1.8-2.2g，即117-143g/天）和复合碳水（如米饭、燕麦、红薯）。 2. **训练重点**：以复合动作为主（深蹲、硬拉、卧推、划船），每周每个肌群训练2次，每组6-12次，接近力竭。建议每周增加2.5-5kg负荷（如深蹲从60kg→62.5kg），记录每次表现。 3. **恢复监控**：你未提供睡眠或疲劳数据，但若训练后持续酸痛或精力下降，优先减量或增加休息日。 **下一步请告诉我：** - 你目前的训练频率和主要动作（如深蹲、卧推的当前重量和组数）？ - 每日大概摄入多少卡路里和蛋白质？ - 睡眠质量（小时/晚）和主观疲劳感（1-10分）？ 我会据此细化你的计划。
+                        - generic [ref=e303]:
+                            - generic "Thinking time" [ref=e304]: ⏱ 0.5s
+                            - generic "Tokens used" [ref=e305]: 513 tokens
+                    - generic [ref=e306]:
+                        - generic [ref=e307]:
+                            - generic [ref=e308]: 你
+                            - generic [ref=e309]: 04-30 08:16
+                        - generic [ref=e310]: 你好16：13
+                    - generic [ref=e311]:
+                        - generic [ref=e312]:
+                            - generic [ref=e313]: AI 教练
+                            - generic [ref=e314]: 04-30 08:17
+                        - button "▸ 思考过程" [ref=e316] [cursor=pointer]
+                        - generic [ref=e317]: 你好！看起来你提到了一个时间点（16:13），但我不太确定这是指什么。可能是： 1. **训练时间**：你计划在16:13开始训练？如果是，建议你提前30分钟补充一些快速碳水（如香蕉或全麦面包），并确保训练前充分补水（约500ml）。 2. **间歇训练结构**：比如“16分钟工作，13分钟休息”？但这对增肌训练来说不太典型。增肌训练通常每组休息60-90秒，组间休息2-3分钟。 3. **其他含义**：比如心率区间、时间安排等。 **请明确一下你的意图**，这样我才能给出精准建议。例如： - “我计划下午4:13训练，有什么注意事项？” - “我想了解16:13的间歇训练方案？” - “这是某个训练动作的组数/次数比例？” 期待你的进一步说明！
+                        - generic [ref=e318]:
+                            - generic "Thinking time" [ref=e319]: ⏱ 0.6s
+                            - generic "Tokens used" [ref=e320]: 1572 tokens
+                        - generic [ref=e321]:
+                            - generic [ref=e322]: "References:"
+                            - 'generic "# ACSM心肺耐力运动处方：强度监控与训练方法 来源: https://www.acsm.org/education-resources/trending-topics-resources 权威等级: 高 内容类型: 训练指南 ## 心肺耐力运动处方 ## 心肺耐力运动处方 ACSM将心肺耐力定义为循环和呼吸系统在持续性身体活动中供应氧气的能力。心肺耐力是全民死亡率的最强预测因子之一。" [ref=e323]': ACSM心肺耐力运动处方：强度监控与训练方法 (fitness)
+                            - 'generic "# Periodization Models for Strength Training: Linear, Block, and Undulating 来源: https://www.nsca.com/education/articles/kinetic-select/ 权威等级: 高 内容类型: 训练指南 ## Periodization Models ## Periodization M" [ref=e324]': "Periodization Models for Strength Training: Linear, Block, and Undulating (fitness)"
+                            - 'generic "# WHO身体活动指南：18-64岁成年人运动建议 来源: https://www.who.int/news-room/fact-sheets/detail/physical-activity 权威等级: 高 内容类型: 训练指南 ## 成年人身体活动推荐量（18-64岁） ## 成年人身体活动推荐量（18-64岁） 世界卫生组织2020年发布的《身体活动和久坐行为指南》建议，所有成年人每" [ref=e325]': WHO身体活动指南：18-64岁成年人运动建议 (fitness)
+                    - generic [ref=e326]:
+                        - generic [ref=e327]:
+                            - generic [ref=e328]: 你
+                            - generic [ref=e329]: 04-30 09:09
+                        - generic [ref=e330]: 你觉得个人健身时该怎么分维度记录，分哪些维度，比如分饮食（每天热量目标、各项营养目标）、训练（分化计划、动作安排、当前重量记录）等等
+                    - generic [ref=e331]:
+                        - generic [ref=e332]:
+                            - generic [ref=e333]: AI 教练
+                            - generic [ref=e334]: 04-30 09:09
+                        - generic [ref=e335]: "非常好的问题。作为你的教练，我建议你按以下 **5个核心维度** 来记录，每个维度只记最关键的指标，避免信息过载。 --- ### 1. 饮食（每日必记） - **热量**：实际摄入 vs 目标（当前建议 **2800-3000 kcal/天**，基于你65kg增肌需求） - **蛋白质**：实际克数 vs 目标（**130-140g/天**） - **碳水/脂肪**：只需记总量，不必细分（碳水建议 **350-400g**，脂肪 **60-70g**） - **水分**：是否达到 **3L/天** **记录格式示例**： `日期 | 热量(kcal) | 蛋白质(g) | 碳水(g) | 脂肪(g) | 水(L)` `5/20 | 2850 | 135 | 380 | 65 | 2.8` --- ### 2. 训练（每次训练后记） - **分化计划**：如“推/拉/腿”或“上下肢分化” - **动作**：只记主项（深蹲、卧推、硬拉、划船、推举） - **负荷**：重量 × 次数 × 组数（如 `深蹲 80kg × 6次 × 4组`） - **RPE（主观疲劳度）**：1-10分，记录每组最后1-2次的费力程度（增肌建议 **7-9分**） **记录格式示例**： `日期 | 分化 | 动作 | 负荷 | RPE` `5/20 | 下肢 | 深蹲 | 80kg×6×4 | 8` `5/20 | 下肢 | 罗马尼亚硬拉 | 70kg×8×3 | 7` --- ### 3. 身体数据（每周一次，固定时间） - **体重**：晨起空腹、排便后、穿同样衣物 - **体脂率**：用同一台设备（如体脂秤），记录趋势而非单次数值 - **肌肉量**：同上，关注变化方向 - **腰围**：肚脐水平，反映脂肪分布变化 **记录格式示例**： `周次 | 体重(kg) | 体脂(%) | 肌肉量(kg) | 腰围(cm)` `第1周 | 65.0 | 11.4 | 30.6 | 72` --- ### 4. 恢复（每日主观评分） - **睡眠**：时长 + 质量评分（1-10分） - **肌肉酸痛**：1-10分（1=无，10=无法活动） - **精力水平**：1-10分（1=极度疲劳，10=精力充沛） - **备注**：压力、生病、饮酒等 **记录格式示例**： `日期 | 睡眠(h)/质量 | 酸痛 | 精力 | 备注` `5/20 | 7.5/8 | 3 | 7 | 无` --- ### 5. 进度总结（每2-4周一次） - **训练表现**：主项重量是否提升（如深蹲从80kg→85kg） - **身体数据**：体重、体脂、肌肉量变化 - **饮食依从性**：达标天数比例 - **调整方向**：如“热量需增加200kcal”或“增加一组深蹲” --- ### 你的当前记录建议（基于你的目标） - **饮食**：热量目标 **2900 kcal**，蛋白质 **140g**，碳水 **380g**，脂肪 **65g** - **训练**：建议采用 **推/拉/腿** 或 **上下肢分化**，主项每周增加 **2.5-5kg** - **身体数据**：每周一早晨记录 - **恢复**：睡眠目标 **7.5h+**，精力评分 **7+** **下一步**：你可以从今天开始，用手机备忘录或Excel按上述格式记录。坚持2周后，我们复盘调整。需要我帮你设计一个初始训练分化计划吗？"
+                        - generic [ref=e336]:
+                            - generic "Thinking time" [ref=e337]: ⏱ 0.7s
+                            - generic "Tokens used" [ref=e338]: 1654 tokens
+                    - generic [ref=e339]:
+                        - generic [ref=e340]:
+                            - generic [ref=e341]: 你
+                            - generic [ref=e342]: 04-30 10:39
+                        - generic [ref=e343]: 我的训练目标是增肌体重目前是63kg，目标70kg，目标时间是7月初
+                    - generic [ref=e344]:
+                        - generic [ref=e345]:
+                            - generic [ref=e346]: AI 教练
+                            - generic [ref=e347]: 04-30 10:39
+                        - generic [ref=e348]: "好的，目标非常清晰！我们重新校准一下计划。 **核心调整：** - **当前体重**：63kg（比上次记录轻了2kg，可能是测量误差或体脂下降，但需确认） - **目标**：70kg（增重7kg） - **时间**：从现在到7月初（约6-7周） - **关键挑战**：时间紧，需要**快速且高效**的增肌策略。 **鉴于时间紧迫，你的记录维度需要更聚焦于“执行”和“反馈”：** ### 1. 饮食（每日必记，这是成败关键） - **热量目标**：**3200-3400 kcal/天**（比之前建议更高，因为时间紧且你体重更轻，需要更大热量盈余） - **蛋白质目标**：**140-150g/天**（每公斤体重2.2-2.4g） - **碳水目标**：**400-450g/天**（为高强度训练供能） - **脂肪目标**：**70-80g/天**（维持激素水平） - **水分**：**3.5L/天**（促进代谢和恢复） **记录格式**（简化版，每天只需记3个数字）： `日期 | 热量(kcal) | 蛋白质(g) | 碳水(g)` `5/21 | 3300 | 145 | 420` ### 2. 训练（每次训练后记，重点看“渐进负荷”） - **分化计划**：推荐 **“推/拉/腿”** 或 **“上肢/下肢”** 循环，每周每个部位训练2次。 - **动作**：只记 **3个核心复合动作**（深蹲、卧推、硬拉/划船）和 **1个辅助动作**（如推举、引体向上）。 - **负荷记录**：**重量 × 次数 × 组数**（如 `深蹲 75kg × 6次 × 4组`） - **关键指标**：**RPE**（主观疲劳度，1-10分，增肌建议7-9分）和 **是否完成目标次数**。 **记录格式**（每次训练后花1分钟）： `日期 | 分化 | 动作 | 负荷 | RPE | 完成目标？` `5/21 | 下肢 | 深蹲 | 75kg×6×4 | 8 | 是` `5/21 | 下肢 | 罗马尼亚硬拉 | 65kg×8×3 | 7 | 是` ### 3. 身体数据（每周一次，固定时间） - **体重**：每周一早晨空腹、排便后、穿同样衣物。 - **腰围**：肚脐水平，每周一测。 - **体脂/肌肉量**：如果你有体脂秤，可以记录，但**不要过度依赖**，更关注体重和腰围的变化趋势。 **记录格式**： `周次 | 体重(kg) | 腰围(cm)` `第1周 | 63.0 | 71` `第2周 | 64.2 | 72` ### 4. 恢复（每日主观评分，1分钟） - **睡眠时长**：目标 **8小时/晚** - **肌肉酸痛**：1-10分（1=无，10=无法活动） - **精力水平**：1-10分（1=极度疲劳，10=精力充沛） **记录格式**： `日期 | 睡眠(h) | 酸痛 | 精力` `5/21 | 7.5 | 4 | 6` ### 5. 每周复盘（每周末花10分钟） - **训练表现**：主项重量是否提升（如深蹲从75kg→80kg） - **体重变化**：本周增重多少（理想是 **0.5-1kg/周**） - **饮食依从性**：本周有多少天达到了热量和蛋白质目标（目标 **6/7天**） - **调整**：如果体重增长慢，下周长热量增加200kcal；如果训练疲劳，减少一组或降低RPE。 --- ### 你的初始行动清单（今天开始） 1. **饮食**：立即将每日热量目标设为 **3300 kcal**，蛋白质 **145g**。如果吃不下，用蛋白粉或牛奶补足。 2. **训练**：采用 **“推/拉/腿”** 分化，每周训练 **5-6天**（例如：周一推、周二拉、周三腿、周四推、周五拉、周六腿、周日休息）。 3. **记录**：从今天开始，用手机备忘录或Excel按上述格式记录饮食和训练。 4. **恢复**：强制自己 **23:00前睡觉**，保证8小时睡眠。 **关键提醒**：7周增重7kg（平均每周1kg）是**激进但可行**的目标，前提是**饮食必须严格执行**，训练必须**高强度且持续**。如果中途体重停滞超过1周，立即增加热量200-300kcal。 **现在告诉我**：你目前的训练频率和主要动作（如深蹲、卧推的当前重量）？以及你每天大概能摄入多少卡路里和蛋白质？我会据此细化你的计划。"
+                        - generic [ref=e349]:
+                            - generic "Thinking time" [ref=e350]: ⏱ 0.6s
+                            - generic "Tokens used" [ref=e351]: 2817 tokens
+                - generic [ref=e14]:
+                    - textbox "What would you like to know about your training?" [ref=e15]
+                    - button "Send" [disabled] [ref=e16]
+        - generic [ref=e17]:
+            - generic [ref=e18]:
+                - generic [ref=e20]: "API: connected"
+                - generic [ref=e21]: "|"
+                - generic [ref=e22]: "Tier: —"
+                - generic [ref=e23]: "|"
+                - generic [ref=e24]: "RAG: 8 docs loaded"
+            - generic [ref=e25]:
+                - generic [ref=e26]: "Session: ¥0.0000"
+                - generic [ref=e27]: "|"
+                - generic [ref=e28]: "Month: ¥0.00 / ¥30"
+                - generic [ref=e29]: ¥30 left
+    - generic [ref=e352]: 04-26

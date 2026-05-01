@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fitness Agent MVP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <p class="eyebrow">Athletic Coach</p>
+          <h1>Fitness Agent</h1>
+          <p>多页面工作台（亮色版）</p>
+        </div>
+
+        <nav class="menu" id="main-menu">
+          <button type="button" class="menu-item active" data-page="home">
+            总览首页
+          </button>
+          <button type="button" class="menu-item" data-page="plan">
+            训练计划
+          </button>
+          <button type="button" class="menu-item" data-page="workout">
+            训练记录
+          </button>
+          <button type="button" class="menu-item" data-page="readiness">
+            恢复体征
+          </button>
+          <button type="button" class="menu-item" data-page="nutrition">
+            饮食记录
+          </button>
+          <button type="button" class="menu-item" data-page="knowledge">
+            体测记录库
+          </button>
+          <button type="button" class="menu-item" data-page="consent">
+            提议与同意
+          </button>
+        </nav>
+
+        <div class="status-strip">
+          <span id="badge-connection" class="status-badge status-ok"
+            >API Online</span
+          >
+          <span id="badge-budget" class="status-badge">预算 --</span>
+          <span id="badge-route" class="status-badge">路由 --</span>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <h2 id="page-title">总览首页</h2>
+          <p id="page-subtitle">查看训练趋势、预算状态和核心建议。</p>
+        </header>
+        <div
+          id="global-toast"
+          class="app-toast"
+          role="status"
+          aria-live="polite"
+        ></div>
+
+        <section class="page active" id="page-home">
+          <div class="preview-grid">
+            <article class="preview-card">
+              <p>下次训练</p>
+              <h3 id="metric-next-training">--</h3>
+            </article>
+            <article class="preview-card">
+              <p>今日动作</p>
+              <h3 id="metric-action">--</h3>
+            </article>
+            <article class="preview-card">
+              <p>近14天训练次数</p>
+              <h3 id="metric-workout-count">0</h3>
+            </article>
+            <article class="preview-card">
+              <p>预算使用率</p>
+              <h3 id="metric-budget-ratio">0%</h3>
+            </article>
+            <article class="preview-card">
+              <p>目标类型</p>
+              <h3 id="metric-goal-type">--</h3>
+            </article>
+            <article class="preview-card">
+              <p>距离体重目标</p>
+              <h3 id="metric-weight-gap">--</h3>
+            </article>
+            <article class="preview-card">
+              <p>距离肌肉目标</p>
+              <h3 id="metric-muscle-gap">--</h3>
+            </article>
+            <article class="preview-card">
+              <p>增长曲线</p>
+              <h3 id="metric-progress-label">--</h3>
+            </article>
+          </div>
+
+          <section class="panel" id="panel-goal-tracking">
+            <div class="panel-head">
+              <h3>目标追踪与达成反馈</h3>
+              <span class="pill">Goal Tracking</span>
+            </div>
+            <div id="goal-progress-content" class="content-list"></div>
+            <div class="goal-quick-actions">
+              <button type="button" id="goal-edit-btn">
+                编辑目标（跳转训练计划页）
+              </button>
+            </div>
+          </section>
+
+          <section class="panel" id="panel-training-calendar">
+            <div class="panel-head">
+              <h3>训练日历（公历模板）</h3>
+              <span class="pill">Calendar</span>
+            </div>
+            <div class="calendar-toolbar">
+              <div>
+                <p
+                  id="calendar-month-title"
+                  class="calendar-month-title"
+                  title="点击回到本月"
+                >
+                  --
+                </p>
+                <p class="calendar-date-source">
+                  日期来源：
+                  <span
+                    id="calendar-date-source-badge"
+                    class="date-source-badge date-source-local"
+                    >本地</span
+                  >
+                  <span id="calendar-last-sync" class="calendar-last-sync"
+                    >更新时间 --:--:--</span
+                  >
+                </p>
+              </div>
+              <div class="calendar-nav">
+                <button
+                  type="button"
+                  id="calendar-prev-btn"
+                  class="calendar-nav-btn icon-btn"
+                  aria-label="上月"
+                  title="上月"
+                >
+                  <span aria-hidden="true">&#x2039;</span>
+                </button>
+                <button
+                  type="button"
+                  id="calendar-next-btn"
+                  class="calendar-nav-btn icon-btn"
+                  aria-label="下月"
+                  title="下月"
+                >
+                  <span aria-hidden="true">&#x203A;</span>
+                </button>
+                <select
+                  id="calendar-year-select"
+                  class="calendar-jump-select"
+                  aria-label="选择年份"
+                ></select>
+                <select
+                  id="calendar-month-select"
+                  class="calendar-jump-select"
+                  aria-label="选择月份"
+                >
+                  <option value="0">1月</option>
+                  <option value="1">2月</option>
+                  <option value="2">3月</option>
+                  <option value="3">4月</option>
+                  <option value="4">5月</option>
+                  <option value="5">6月</option>
+                  <option value="6">7月</option>
+                  <option value="7">8月</option>
+                  <option value="8">9月</option>
+                  <option value="9">10月</option>
+                  <option value="10">11月</option>
+                  <option value="11">12月</option>
+                </select>
+                <button
+                  type="button"
+                  id="calendar-jump-btn"
+                  class="calendar-nav-btn icon-btn"
+                  aria-label="跳转到所选年月"
+                  title="跳转到所选年月"
+                >
+                  <span aria-hidden="true">&#x27A4;</span>
+                </button>
+              </div>
+            </div>
+            <div id="training-calendar" class="training-calendar"></div>
+            <p class="calendar-legend">
+              <span class="legend-item"
+                ><i class="legend-dot done"></i>已完成</span
+              >
+              <span class="legend-item"
+                ><i class="legend-dot planned"></i>计划训练</span
+              >
+              <span class="legend-item"
+                ><i class="legend-dot missed"></i>未完成</span
+              >
+              <span class="legend-item"
+                ><i class="legend-dot rest"></i>休息</span
+              >
+            </p>
+          </section>
+
+          <div class="chart-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>恢复趋势（近7天）</h3>
+                <span class="pill">Readiness</span>
+              </div>
+              <canvas id="chart-readiness" height="210"></canvas>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h3>训练负荷（近7次）</h3>
+                <span class="pill">Volume</span>
+              </div>
+              <canvas id="chart-workload" height="210"></canvas>
+            </section>
+          </div>
+
+          <section class="panel" id="panel-today">
+            <div class="panel-head">
+              <h3>今日建议与 AI 助手</h3>
+              <span class="pill">Rule-First</span>
+            </div>
+            <div id="today-content" class="content-list">Loading...</div>
+            <form id="ai-form" class="form-row">
+              <label
+                >问题
+                <input
+                  type="text"
+                  name="user_query"
+                  value="我最近卧推停滞，今天该怎么练？"
+                  required
+              /></label>
+              <label
+                >路由
+                <select name="route_preference">
+                  <option value="auto">auto</option>
+                  <option value="l1">l1</option>
+                  <option value="l2">l2</option>
+                </select>
+              </label>
+              <button type="submit">获取建议</button>
+            </form>
+            <div id="ai-response" class="mono-box"></div>
+          </section>
+        </section>
+
+        <section class="page" id="page-plan">
+          <section class="panel" id="panel-plan">
+            <div class="panel-head">
+              <h3>训练计划（可配置周期）</h3>
+              <span class="pill">周期化</span>
+            </div>
+            <div id="plan-content" class="content-list"></div>
+            <form id="plan-form" class="form-grid form-grid-3">
+              <label
+                >周期周次
+                <input
+                  type="number"
+                  name="cycle_week"
+                  value="1"
+                  min="1"
+                  required
+              /></label>
+              <label
+                >周期起始日 <input type="date" name="cycle_start_date" required
+              /></label>
+              <label
+                >周期天数
+                <input
+                  type="number"
+                  name="cycle_length_days"
+                  value="14"
+                  min="7"
+                  max="28"
+                  required
+              /></label>
+              <label
+                >下次训练时间
+                <input
+                  type="datetime-local"
+                  name="next_training_time"
+                  value="2026-04-16T19:00"
+                  required
+              /></label>
+              <div class="plan-actions-bar">
+                <button type="button" id="regen-cycle-btn">重建模板</button>
+                <button type="button" id="preset-2week-btn">
+                  两周模板（1357 / 246）
+                </button>
+                <button type="submit">保存计划</button>
+              </div>
+              <div class="cycle-editor-wrap">
+                <div class="cycle-editor-head">
+                  <h4>周期日模板编辑</h4>
+                  <div class="cycle-editor-meta">
+                    <span id="cycle-summary" class="cycle-summary"
+                      >训练日 0 | 休息日 0</span
+                    >
+                    <label class="cycle-filter-toggle">
+                      <input type="checkbox" id="cycle-training-only" />
+                      仅显示训练日
+                    </label>
+                  </div>
+                </div>
+                <div id="cycle-editor" class="cycle-editor"></div>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel" id="panel-goal-settings">
+            <div class="panel-head">
+              <h3>目标设定</h3>
+              <span class="pill">Goal Form</span>
+            </div>
+            <form id="goal-form" class="form-grid form-grid-3">
+              <label
+                >目标类型
+                <select name="goal_type">
+                  <option value="muscle_gain">增肌</option>
+                  <option value="fat_loss">减脂</option>
+                  <option value="maintenance">维持</option>
+                </select>
+              </label>
+              <label
+                >起始日期 <input type="date" name="start_date" required
+              /></label>
+              <label
+                >目标日期 <input type="date" name="target_date" required
+              /></label>
+              <label
+                >起始体重(kg)
+                <input
+                  type="number"
+                  step="0.1"
+                  name="start_weight_kg"
+                  min="0"
+                  required
+              /></label>
+              <label
+                >目标体重(kg)
+                <input
+                  type="number"
+                  step="0.1"
+                  name="target_weight_kg"
+                  min="0"
+                  required
+              /></label>
+              <label
+                >当前肌肉量(kg)
+                <input type="number" step="0.1" name="latest_muscle_kg" min="0"
+              /></label>
+              <label
+                >起始肌肉量(kg)
+                <input type="number" step="0.1" name="start_muscle_kg" min="0"
+              /></label>
+              <label
+                >目标肌肉量(kg)
+                <input type="number" step="0.1" name="target_muscle_kg" min="0"
+              /></label>
+              <div></div>
+              <button type="submit">保存目标并刷新反馈</button>
+            </form>
+          </section>
+        </section>
+
+        <section class="page" id="page-workout">
+          <section class="panel" id="panel-workout">
+            <div class="panel-head">
+              <h3>训练记录</h3>
+              <span class="pill">Progressive Overload</span>
+            </div>
+            <div id="workout-content" class="content-list"></div>
+            <form id="workout-form" class="form-grid form-grid-2">
+              <label
+                >日期 <input type="date" name="training_date" required
+              /></label>
+              <label
+                >训练焦点
+                <select name="focus_area" required>
+                  <option value="upper">上肢</option>
+                  <option value="lower">下肢</option>
+                  <option value="push">推</option>
+                  <option value="pull">拉</option>
+                  <option value="legs">腿部</option>
+                  <option value="chest">胸</option>
+                  <option value="back">背</option>
+                  <option value="shoulders">肩</option>
+                  <option value="arms">手臂</option>
+                  <option value="core">核心</option>
+                  <option value="full_body">全身</option>
+                  <option value="cardio">有氧</option>
+                  <option value="conditioning">体能</option>
+                  <option value="strength">力量</option>
+                  <option value="hypertrophy">增肌</option>
+                  <option value="mobility">灵活性</option>
+                </select>
+              </label>
+              <label
+                >动作
+                <input
+                  type="text"
+                  name="exercise_name"
+                  value="bench_press"
+                  required
+              /></label>
+              <label
+                >器械
+                <input type="text" name="equipment" value="barbell" required
+              /></label>
+              <label
+                >组数
+                <input type="number" name="sets" value="4" min="1" required
+              /></label>
+              <label
+                >次数
+                <input type="number" name="reps" value="5" min="1" required
+              /></label>
+              <label
+                >重量(kg)
+                <input
+                  type="number"
+                  step="0.5"
+                  name="weight_kg"
+                  value="40"
+                  min="0"
+                  required
+              /></label>
+              <label
+                >RPE
+                <input
+                  type="number"
+                  step="0.5"
+                  name="rpe"
+                  value="8"
+                  min="1"
+                  max="10"
+              /></label>
+              <button type="submit">新增训练</button>
+            </form>
+          </section>
+        </section>
+
+        <section class="page" id="page-readiness">
+          <section class="panel" id="panel-readiness">
+            <div class="panel-head">
+              <h3>恢复体征</h3>
+              <span class="pill">Recovery Gate</span>
+            </div>
+            <div id="readiness-content" class="content-list"></div>
+            <form id="readiness-form" class="form-grid form-grid-2">
+              <label>日期 <input type="date" name="log_date" required /></label>
+              <label
+                >睡眠时长
+                <input
+                  type="number"
+                  step="0.1"
+                  name="sleep_hours"
+                  value="7"
+                  min="0"
+                  max="24"
+                  required
+              /></label>
+              <label
+                >疲劳(1-10)
+                <input
+                  type="number"
+                  name="fatigue_score"
+                  value="5"
+                  min="1"
+                  max="10"
+                  required
+              /></label>
+              <label
+                >疼痛(1-10)
+                <input
+                  type="number"
+                  name="pain_score"
+                  value="3"
+                  min="1"
+                  max="10"
+                  required
+              /></label>
+              <label
+                >压力(1-10)
+                <input
+                  type="number"
+                  name="stress_score"
+                  value="5"
+                  min="1"
+                  max="10"
+                  required
+              /></label>
+              <button type="submit">新增恢复记录</button>
+            </form>
+          </section>
+        </section>
+
+        <section class="page" id="page-nutrition">
+          <section class="panel" id="panel-nutrition">
+            <div class="panel-head">
+              <h3>饮食记录</h3>
+              <span class="pill">营养追踪</span>
+            </div>
+            <div id="nutrition-content" class="content-list"></div>
+            <form id="nutrition-form" class="form-grid form-grid-2">
+              <label>日期 <input type="date" name="log_date" required /></label>
+              <label
+                >热量(kcal)
+                <input
+                  type="number"
+                  name="calories_kcal"
+                  value="2200"
+                  min="0"
+                  required
+              /></label>
+              <label
+                >蛋白质(g)
+                <input
+                  type="number"
+                  step="0.1"
+                  name="protein_g"
+                  value="150"
+                  min="0"
+                  required
+              /></label>
+              <label
+                >碳水(g)
+                <input
+                  type="number"
+                  step="0.1"
+                  name="carbs_g"
+                  value="220"
+                  min="0"
+                  required
+              /></label>
+              <label
+                >脂肪(g)
+                <input
+                  type="number"
+                  step="0.1"
+                  name="fat_g"
+                  value="70"
+                  min="0"
+                  required
+              /></label>
+              <label
+                >饮水(L)
+                <input
+                  type="number"
+                  step="0.1"
+                  name="water_liters"
+                  value="2.5"
+                  min="0"
+                  required
+              /></label>
+              <label
+                >体重(kg)
+                <input
+                  type="number"
+                  step="0.1"
+                  name="body_weight_kg"
+                  value="70"
+                  min="0"
+              /></label>
+              <label
+                >体脂率(%)
+                <input
+                  type="number"
+                  step="0.1"
+                  name="body_fat_rate_pct"
+                  value="18"
+                  min="0"
+                  max="100"
+              /></label>
+              <label
+                >肌肉重量(kg)
+                <input
+                  type="number"
+                  step="0.1"
+                  name="muscle_weight_kg"
+                  value="31"
+                  min="0"
+              /></label>
+              <label
+                >腰围(cm)
+                <input
+                  type="number"
+                  step="0.1"
+                  name="waist_cm"
+                  value="80"
+                  min="0"
+              /></label>
+              <button type="submit">新增饮食记录</button>
+            </form>
+          </section>
+        </section>
+
+        <section class="page" id="page-knowledge">
+          <section class="panel" id="panel-kb">
+            <div class="panel-head">
+              <h3>体测记录库</h3>
+              <span class="pill">RAG Source</span>
+            </div>
+            <div class="kb-metrics-grid">
+              <div class="kb-metrics-left">
+                <div class="kb-upload-card">
+                  <div class="kb-upload-actions">
+                    <button type="button" id="inbody-pick-btn">选择图片</button>
+                    <input
+                      id="inbody-file-input"
+                      type="file"
+                      accept="image/*"
+                      hidden
+                    />
+                    <span id="inbody-file-name" class="muted">未选择文件</span>
+                  </div>
+                  <div
+                    id="inbody-dropzone"
+                    class="kb-dropzone"
+                    role="button"
+                    tabindex="0"
+                    aria-label="上传 InBody 图片（点击选择或拖入）"
+                    title="点击选择图片，或将图片拖入此区域"
+                  >
+                    点击选择图片，或拖入图片到这里
+                  </div>
+                  <div class="kb-preview">
+                    <img
+                      id="inbody-preview"
+                      class="kb-preview-img"
+                      alt="InBody 预览"
+                    />
+                  </div>
+                  <p id="inbody-ocr-status" class="muted">等待上传</p>
+                </div>
+
+                <form id="body-metric-form" class="form-grid form-grid-2">
+                  <label
+                    >体测日期 <input type="date" name="log_date" required
+                  /></label>
+                  <label
+                    >体重(kg)
+                    <input
+                      type="number"
+                      step="0.1"
+                      name="body_weight_kg"
+                      min="0"
+                  /></label>
+                  <label
+                    >体脂率(%)
+                    <input
+                      type="number"
+                      step="0.1"
+                      name="body_fat_rate_pct"
+                      min="0"
+                      max="100"
+                  /></label>
+                  <label
+                    >肌肉重量(kg)
+                    <input
+                      type="number"
+                      step="0.1"
+                      name="muscle_weight_kg"
+                      min="0"
+                  /></label>
+                  <input type="hidden" name="source_asset_id" />
+                  <button type="submit">保存体测数据</button>
+                </form>
+
+                <h4>最近体测</h4>
+                <div id="body-metrics-content" class="content-list"></div>
+
+                <h4>资料条目（可选）</h4>
+                <div id="kb-content" class="content-list"></div>
+              </div>
+
+              <div class="kb-metrics-right">
+                <section class="panel panel-tight">
+                  <div class="panel-head">
+                    <h3>体重趋势</h3>
+                    <span class="pill">Weight</span>
+                  </div>
+                  <canvas id="chart-body-weight" height="210"></canvas>
+                </section>
+
+                <section class="panel panel-tight">
+                  <div class="panel-head">
+                    <h3 id="chart-body-secondary-title">体脂/肌肉趋势</h3>
+                    <span class="pill">Body Comp</span>
+                  </div>
+                  <canvas id="chart-body-secondary" height="210"></canvas>
+                </section>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="page" id="page-consent">
+          <section class="panel" id="panel-consent">
+            <div class="panel-head">
+              <h3>AI 改动提议与同意流程</h3>
+              <span class="pill pill-warn">高风险需确认</span>
+            </div>
+            <form id="proposal-form" class="form-grid form-grid-3">
+              <label
+                >字段
+                <input
+                  type="text"
+                  name="field_path"
+                  value="next_training_time"
+                  required
+              /></label>
+              <label
+                >新值
+                <input
+                  type="text"
+                  name="new_value"
+                  value="2026-04-17 19:00"
+                  required
+              /></label>
+              <label
+                >原因
+                <input
+                  type="text"
+                  name="reason"
+                  value="恢复状态偏低，建议顺延一天"
+                  required
+              /></label>
+              <button type="submit">创建提议</button>
+            </form>
+            <h3>待审批提议</h3>
+            <div id="proposal-content" class="content-list"></div>
+
+            <h3>审计日志</h3>
+            <div id="audit-content" class="content-list"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

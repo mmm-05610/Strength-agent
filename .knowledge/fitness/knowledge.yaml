@@ -1,0 +1,16 @@
+name: fitness
+description: 健身训练知识库 — 涵盖力量训练动作库、心肺训练指南、运动营养指导、运动科学文献综述及特殊人群运动处方，整合ACS、NSCA、WHO、ACSM等权威来源
+tags:
+  - 健身
+  - 力量训练
+  - 有氧运动
+  - 运动营养
+  - 动作库
+  - 运动科学
+  - 减脂
+  - 增肌
+  - 柔韧性
+  - 运动处方
+version: "1.0.0"
+created: "2026-04-30"
+author: knowledge-hub

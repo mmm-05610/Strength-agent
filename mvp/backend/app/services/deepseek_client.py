@@ -32,7 +32,7 @@ class DeepSeekClient:
     def __init__(self) -> None:
         self.api_key = os.getenv("DEEPSEEK_API_KEY", "")
         self.base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-        self.default_model = os.getenv("DEEPSEEK_CHAT_MODEL", "deepseek-chat")
+        self.default_model = os.getenv("DEEPSEEK_CHAT_MODEL", "deepseek-v4-flash")
         self.vl_model = os.getenv("DEEPSEEK_VL2_MODEL", "deepseek-vl2")
 
     def is_configured(self) -> bool:

@@ -1920,12 +1920,12 @@ async def chat(payload: ChatRequest, db: Session = Depends(get_db)):
     thinking_enabled = payload.thinking_mode
     if payload.model:
         model = payload.model
-        route_tier = "l2" if "reasoner" in model.lower() else "l1"
+        route_tier = "l2" if "v4-pro" in model.lower() or "reasoner" in model.lower() else "l1"
         route_reason = "user selected model"
-        if not thinking_enabled and "reasoner" in model.lower():
+        if not thinking_enabled and ("v4-pro" in model.lower() or "reasoner" in model.lower()):
             model = cost_config.model_l1
             route_tier = "l1"
-            route_reason = "fast mode override (reasoner → flash)"
+            route_reason = "fast mode override (v4-pro → flash)"
     else:
         route_tier, route_reason = pick_tier(
             config=cost_config, spent_rmb=spent,

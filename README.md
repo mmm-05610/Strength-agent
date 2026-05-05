@@ -17,7 +17,7 @@
 
 ---
 
-<img src="./frontend.png" alt="Strength Agent Dashboard" width="100%" style="border-radius:12px" />
+<img src="./screenshots/frontend.png" alt="Strength Agent Dashboard" width="100%" style="border-radius:12px" />
 
 ---
 
@@ -87,29 +87,33 @@ User Action (manual / AI chat)
 
 ## 🚀 Quick Start
 
-### Prerequisites
-
-- Python 3.11+ &nbsp;·&nbsp; Node.js 22+ &nbsp;·&nbsp; Rust (for Tauri)
-
-### Backend
+### One-Click Launch (Windows)
 
 ```bash
-cd mvp/backend
-python -m venv .venv && source .venv/Scripts/activate  # or source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env  # edit with your DeepSeek API key
-python -m uvicorn app.main:app --host 127.0.0.1 --port 18720 --reload
+desktop\dev-start.bat
 ```
 
-### Frontend
+Starts both the FastAPI backend (port 18720) and Tauri desktop app.
+
+### Manual Setup
+
+**Prerequisites:** Python 3.11+ &nbsp;·&nbsp; Node.js 22+ &nbsp;·&nbsp; Rust (for Tauri)
 
 ```bash
+# 1. Backend
+cd mvp/backend
+python -m venv .venv && source .venv/Scripts/activate  # macOS/Linux: .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env          # edit with your DeepSeek API key
+python -m uvicorn app.main:app --host 127.0.0.1 --port 18720 --reload
+
+# 2. Frontend (new terminal)
 cd desktop
 npm install
 npm run tauri dev
 ```
 
-### API Health Check
+### Verify
 
 ```bash
 curl http://127.0.0.1:18720/api/v1/dashboard
@@ -119,32 +123,33 @@ curl http://127.0.0.1:18720/api/v1/dashboard
 
 ```
 Strength-agent/
-├── desktop/                      # Tauri + React frontend
+├── desktop/                          # Tauri + React frontend
+│   ├── dev-start.bat                 # One-click launcher (backend + frontend)
 │   ├── src/
-│   │   ├── api/client.ts         # API client & TypeScript interfaces
+│   │   ├── api/client.ts             # API client & TypeScript interfaces
 │   │   ├── components/
-│   │   │   ├── Chat/             # AI chat panel, tool cards, forms
-│   │   │   └── Dashboard/        # Dashboard shell, pages, shared components
-│   │   │       ├── layout/       # Header, sidebar, shell
-│   │   │       ├── pages/        # Training, Recovery, Nutrition, BodyStatus, Goals
-│   │   │       └── components/   # Reusable viz components (rings, dials, charts)
-│   │   ├── hooks/                # useChat, useDashboard, useActions, useHistoryData
-│   │   ├── styles/               # Design tokens, dashboard CSS, component CSS
-│   │   └── test/                 # Test factories, setup, import validation
-│   └── src-tauri/                # Rust shell
+│   │   │   ├── Chat/                 # AI chat panel, tool cards, dynamic forms
+│   │   │   └── Dashboard/            # Dashboard shell, pages, shared components
+│   │   │       ├── layout/           # Header, sidebar, shell
+│   │   │       ├── pages/            # Training, Recovery, Nutrition, BodyStatus, Goals
+│   │   │       └── components/       # Reusable viz (rings, dials, charts, bars)
+│   │   ├── hooks/                    # useChat, useDashboard, useActions, useHistoryData
+│   │   ├── styles/                   # Design tokens, dashboard CSS, component CSS
+│   │   └── test/                     # Test factories, setup, import validation
+│   └── src-tauri/                    # Rust shell
 ├── mvp/backend/
-│   ├── app/
-│   │   ├── main.py               # FastAPI app, all routes, migrations
-│   │   ├── entities.py           # SQLAlchemy ORM models
-│   │   ├── models.py             # Pydantic request/response schemas
-│   │   ├── actions.py            # Unified dispatch interface
-│   │   ├── action_registry.py    # Action handler registration
-│   │   └── services/
-│   │       ├── deepseek_client.py    # LLM function calling
-│   │       ├── profile_extractor.py  # Fitness profile extraction
-│   │       └── food_recognition.py   # Meal → calorie/macro estimation
-│   └── log/                      # Request/response logs (gitignored)
-└── docs/superpowers/             # Design specs & implementation plans
+│   └── app/
+│       ├── main.py                   # FastAPI app, all routes, schema migrations
+│       ├── entities.py               # SQLAlchemy ORM models (7 tables)
+│       ├── models.py                 # Pydantic request/response schemas
+│       ├── actions.py                # Unified dispatch interface
+│       ├── action_registry.py        # Action handler registry
+│       └── services/
+│           ├── deepseek_client.py    # LLM function calling + SSE streaming
+│           ├── profile_extractor.py  # Fitness profile RAG extraction
+│           └── food_recognition.py   # Meal → calorie/macro estimation
+├── screenshots/                      # UI screenshots
+└── docs/                             # Design specs, plans, requirements
 ```
 
 ## 🧪 Testing

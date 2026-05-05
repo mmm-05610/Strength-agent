@@ -1,0 +1,93 @@
+  app_settings: 3 cols
+    - key (VARCHAR(64))
+    - value (JSON)
+    - updated_at (DATETIME)
+
+  audit_logs: 8 cols
+    - id (BIGINT)
+    - actor (VARCHAR(16))
+    - action (VARCHAR(64))
+    - field_path (VARCHAR(128))
+    - old_value (JSON)
+    - new_value (JSON)
+    ... +2 more
+
+  change_proposals: 10 cols
+    - id (BIGINT)
+    - field_path (VARCHAR(128))
+    - old_value (JSON)
+    - new_value (JSON)
+    - reason (TEXT)
+    - initiator (VARCHAR(16))
+    ... +4 more
+
+  chat_messages: 9 cols
+    - id (BIGINT)
+    - user_id (VARCHAR(64))
+    - role (VARCHAR(16))
+    - content (TEXT)
+    - tokens_used (INTEGER)
+    - thinking_time_ms (INTEGER)
+    ... +3 more
+
+  knowledge_assets: 7 cols
+    - id (BIGINT)
+    - asset_type (VARCHAR(32))
+    - title (VARCHAR(256))
+    - source_path (VARCHAR(1024))
+    - tags (JSON)
+    - captured_on (DATE)
+    ... +1 more
+
+  llm_usage_logs: 8 cols
+    - id (BIGINT)
+    - tier (VARCHAR(8))
+    - model (VARCHAR(64))
+    - route_reason (VARCHAR(256))
+    - input_tokens (INTEGER)
+    - output_tokens (INTEGER)
+    ... +2 more
+
+  nutrition_logs: 9 cols
+    - id (BIGINT)
+    - log_date (DATE)
+    - calories_kcal (INTEGER)
+    - protein_g (FLOAT)
+    - carbs_g (FLOAT)
+    - fat_g (FLOAT)
+    ... +3 more
+
+  readiness_logs: 7 cols
+    - id (BIGINT)
+    - log_date (DATE)
+    - sleep_hours (FLOAT)
+    - fatigue_score (INTEGER)
+    - pain_score (INTEGER)
+    - stress_score (INTEGER)
+    ... +1 more
+
+  workout_sessions: 5 cols
+    - id (BIGINT)
+    - training_date (DATE)
+    - focus_area (VARCHAR(64))
+    - notes (TEXT)
+    - created_at (DATETIME)
+
+  body_metrics: 27 cols
+    - id (BIGINT)
+    - log_date (DATE)
+    - body_weight_kg (FLOAT)
+    - body_fat_rate_pct (FLOAT)
+    - body_fat_kg (FLOAT)
+    - muscle_weight_kg (FLOAT)
+    ... +21 more
+
+  workout_sets: 8 cols
+    - id (BIGINT)
+    - workout_session_id (BIGINT)
+    - exercise_name (VARCHAR(128))
+    - equipment (VARCHAR(64))
+    - sets (INTEGER)
+    - reps (INTEGER)
+    ... +2 more
+

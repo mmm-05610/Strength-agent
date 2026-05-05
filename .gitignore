@@ -27,8 +27,21 @@ Thumbs.db
 mvp/backend/uploads/*
 !mvp/backend/uploads/.gitkeep
 
-# Logs
+# Logs & temp
 *.log
 mvp/backend/log/
 nul
 _references/
+
+# Dev artifacts
+.playwright-mcp/
+.superpowers/
+.trae/
+.agents/
+.continue/
+.knowledge/
+**/.claude/
+**/.continue/
+**/.trae/
+**/.agents/
+**/skills-lock.json

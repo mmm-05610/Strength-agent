@@ -1,0 +1,920 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>数据结构迁移对比 — Strength Agent</title>
+    <style>
+      :root {
+        --bg: #f8f7fc;
+        --card: #ffffff;
+        --text: #2d2b3a;
+        --text-secondary: #7c7a8c;
+        --border: #e8e6f0;
+        --accent: #7c6ff7;
+        --danger: #ef4444;
+        --success: #22c55e;
+        --warning: #f59e0b;
+        --mint: #4ecdc4;
+        --shadow:
+          0 1px 3px rgba(45, 43, 58, 0.06), 0 4px 16px rgba(45, 43, 58, 0.04);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 40px 24px;
+      }
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      .subtitle {
+        color: var(--text-secondary);
+        margin-bottom: 40px;
+        font-size: 15px;
+      }
+
+      /* Layout: side by side */
+      .compare-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+        margin-bottom: 40px;
+      }
+
+      .panel {
+        background: var(--card);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+      .panel-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .panel-header.before {
+        background: #fff5f5;
+      }
+      .panel-header.after {
+        background: #f0fdf4;
+      }
+      .panel-badge {
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 20px;
+      }
+      .panel-badge.before {
+        background: #fee2e2;
+        color: var(--danger);
+      }
+      .panel-badge.after {
+        background: #dcfce7;
+        color: #16a34a;
+      }
+      .panel-body {
+        padding: 24px;
+      }
+
+      /* Table cards */
+      .table-card {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        margin-bottom: 20px;
+        overflow: hidden;
+      }
+      .table-card:last-child {
+        margin-bottom: 0;
+      }
+      .table-card-header {
+        padding: 12px 16px;
+        font-weight: 700;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid var(--border);
+      }
+      .table-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+      }
+      .table-icon.nutrition {
+        background: #fef3c7;
+      }
+      .table-icon.body {
+        background: #e0e7ff;
+      }
+      .table-icon.readiness {
+        background: #d1fae5;
+      }
+      .table-icon.workout {
+        background: #fce7f3;
+      }
+
+      /* Field list */
+      .field-list {
+        list-style: none;
+      }
+      .field-item {
+        padding: 8px 16px;
+        font-size: 13px;
+        font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid #f3f4f6;
+      }
+      .field-item:last-child {
+        border-bottom: none;
+      }
+      .field-type {
+        color: var(--text-secondary);
+        font-size: 11px;
+        margin-left: auto;
+      }
+      .field-item.overlap {
+        background: #fff5f5;
+        border-left: 3px solid var(--danger);
+      }
+      .field-item.overlap::before {
+        content: "⚠️";
+        font-size: 11px;
+        flex-shrink: 0;
+      }
+      .field-item.new {
+        background: #f0fdf4;
+        border-left: 3px solid var(--success);
+      }
+      .field-item.new::before {
+        content: "+";
+        font-size: 11px;
+        flex-shrink: 0;
+        color: var(--success);
+        font-weight: 700;
+      }
+      .field-item.removed {
+        background: #fff5f5;
+        border-left: 3px solid var(--danger);
+        color: #9ca3af;
+        text-decoration: line-through;
+      }
+      .field-item.removed::before {
+        content: "✕";
+        font-size: 11px;
+        flex-shrink: 0;
+        color: var(--danger);
+        font-weight: 700;
+      }
+
+      /* Data flow diagram */
+      .flow-section {
+        background: var(--card);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        padding: 24px;
+        margin-bottom: 32px;
+      }
+      .flow-section h2 {
+        font-size: 18px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .flow-diagram {
+        display: flex;
+        align-items: flex-start;
+        gap: 0;
+        overflow-x: auto;
+        padding: 20px 0;
+      }
+
+      .flow-col {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-width: 180px;
+      }
+      .flow-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+      }
+      .flow-box {
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-family: "SF Mono", "Fira Code", monospace;
+        border: 1px solid var(--border);
+        background: #fafafa;
+        text-align: center;
+      }
+      .flow-box.highlight {
+        border-color: var(--accent);
+        background: #eef2ff;
+      }
+      .flow-box.danger {
+        border-color: var(--danger);
+        background: #fff5f5;
+      }
+      .flow-box.success {
+        border-color: var(--success);
+        background: #f0fdf4;
+      }
+
+      .flow-arrow {
+        display: flex;
+        align-items: center;
+        padding: 0 8px;
+        font-size: 20px;
+        color: var(--text-secondary);
+        flex-shrink: 0;
+        margin-top: 20px;
+      }
+
+      .flow-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0;
+      }
+
+      /* Diff badge */
+      .diff-stats {
+        display: flex;
+        gap: 16px;
+        margin: 20px 0;
+        flex-wrap: wrap;
+      }
+      .diff-stat {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .diff-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+
+      .section-title {
+        font-size: 16px;
+        font-weight: 700;
+        margin: 28px 0 16px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid var(--border);
+      }
+
+      .read-path-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+      .read-card {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .read-card h4 {
+        font-size: 13px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .read-card .source {
+        font-size: 11px;
+        font-family: "SF Mono", monospace;
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+      .read-card .source.broken {
+        background: #fee2e2;
+        color: var(--danger);
+      }
+      .read-card .source.fixed {
+        background: #dcfce7;
+        color: #16a34a;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Strength Agent · 数据结构迁移对比</h1>
+      <p class="subtitle">
+        单一真源 (Single Source of Truth) 重构 — 迁移前 vs 迁移后
+      </p>
+
+      <!-- Table Schema Comparison -->
+      <div class="compare-grid">
+        <!-- BEFORE -->
+        <div class="panel">
+          <div class="panel-header before">
+            <span class="panel-badge before">迁移前</span>
+            <span style="font-weight: 700; font-size: 15px"
+              >⚠️ 4 字段跨表重复</span
+            >
+          </div>
+          <div class="panel-body">
+            <!-- NutritionLogEntity BEFORE -->
+            <div class="table-card">
+              <div class="table-card-header">
+                <span class="table-icon nutrition">🍽</span>
+                nutrition_logs
+              </div>
+              <ul class="field-list">
+                <li class="field-item">id<span class="field-type">PK</span></li>
+                <li class="field-item">
+                  log_date<span class="field-type">Date</span>
+                </li>
+                <li class="field-item">
+                  calories_kcal<span class="field-type">int</span>
+                </li>
+                <li class="field-item">
+                  protein_g<span class="field-type">float</span>
+                </li>
+                <li class="field-item">
+                  carbs_g<span class="field-type">float</span>
+                </li>
+                <li class="field-item">
+                  fat_g<span class="field-type">float</span>
+                </li>
+                <li class="field-item">
+                  water_liters<span class="field-type">float</span>
+                </li>
+                <li class="field-item overlap">
+                  body_weight_kg<span class="field-type">float?</span>
+                </li>
+                <li class="field-item overlap">
+                  body_fat_rate_pct<span class="field-type">float?</span>
+                </li>
+                <li class="field-item overlap">
+                  muscle_weight_kg<span class="field-type">float?</span>
+                </li>
+                <li class="field-item overlap">
+                  waist_cm<span class="field-type">float?</span>
+                </li>
+                <li class="field-item">
+                  notes<span class="field-type">text</span>
+                </li>
+                <li class="field-item">
+                  created_at<span class="field-type">datetime</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- BodyMetricEntity BEFORE -->
+            <div class="table-card">
+              <div class="table-card-header">
+                <span class="table-icon body">📊</span>
+                body_metrics
+              </div>
+              <ul class="field-list">
+                <li class="field-item">id<span class="field-type">PK</span></li>
+                <li class="field-item">
+                  log_date<span class="field-type">Date UNIQUE</span>
+                </li>
+                <li class="field-item overlap">
+                  body_weight_kg<span class="field-type">float?</span>
+                </li>
+                <li class="field-item overlap">
+                  body_fat_rate_pct<span class="field-type">float?</span>
+                </li>
+                <li class="field-item overlap">
+                  muscle_weight_kg<span class="field-type">float?</span>
+                </li>
+                <li class="field-item overlap">
+                  waist_cm<span class="field-type">float?</span>
+                </li>
+                <li class="field-item">
+                  body_fat_kg · skeletal_muscle_kg · ...<span class="field-type"
+                    >+18 fields</span
+                  >
+                </li>
+              </ul>
+            </div>
+
+            <!-- Readiness BEFORE -->
+            <div class="table-card">
+              <div class="table-card-header">
+                <span class="table-icon readiness">🌙</span>
+                readiness_logs
+              </div>
+              <ul class="field-list">
+                <li class="field-item">
+                  sleep_hours, fatigue_score, pain_score, stress_score<span
+                    class="field-type"
+                    >✅ 无重叠</span
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- AFTER -->
+        <div class="panel">
+          <div class="panel-header after">
+            <span class="panel-badge after">迁移后</span>
+            <span style="font-weight: 700; font-size: 15px"
+              >✅ 单一真源，零重叠</span
+            >
+          </div>
+          <div class="panel-body">
+            <!-- NutritionLogEntity AFTER -->
+            <div class="table-card">
+              <div class="table-card-header">
+                <span class="table-icon nutrition">🍽</span>
+                nutrition_logs
+              </div>
+              <ul class="field-list">
+                <li class="field-item">id<span class="field-type">PK</span></li>
+                <li class="field-item">
+                  log_date<span class="field-type">Date</span>
+                </li>
+                <li class="field-item">
+                  calories_kcal<span class="field-type">int</span>
+                </li>
+                <li class="field-item">
+                  protein_g<span class="field-type">float</span>
+                </li>
+                <li class="field-item">
+                  carbs_g<span class="field-type">float</span>
+                </li>
+                <li class="field-item">
+                  fat_g<span class="field-type">float</span>
+                </li>
+                <li class="field-item">
+                  water_liters<span class="field-type">float</span>
+                </li>
+                <li class="field-item removed">
+                  body_weight_kg<span class="field-type">已删除</span>
+                </li>
+                <li class="field-item removed">
+                  body_fat_rate_pct<span class="field-type">已删除</span>
+                </li>
+                <li class="field-item removed">
+                  muscle_weight_kg<span class="field-type">已删除</span>
+                </li>
+                <li class="field-item removed">
+                  waist_cm<span class="field-type">已删除</span>
+                </li>
+                <li class="field-item">
+                  notes<span class="field-type">text</span>
+                </li>
+                <li class="field-item">
+                  created_at<span class="field-type">datetime</span>
+                </li>
+              </ul>
+              <div
+                style="
+                  padding: 8px 16px;
+                  font-size: 11px;
+                  color: var(--success);
+                  background: #f0fdf4;
+                "
+              >
+                9 列 → 5 业务列 + 2 系统列
+              </div>
+            </div>
+
+            <!-- BodyMetricEntity AFTER -->
+            <div class="table-card">
+              <div class="table-card-header">
+                <span class="table-icon body">📊</span>
+                body_metrics
+                <span style="font-size: 11px; color: var(--success)"
+                  >← 唯一真源</span
+                >
+              </div>
+              <ul class="field-list">
+                <li class="field-item" style="font-weight: 600">
+                  body_weight_kg<span class="field-type">float?</span>
+                </li>
+                <li class="field-item" style="font-weight: 600">
+                  body_fat_rate_pct<span class="field-type">float?</span>
+                </li>
+                <li class="field-item" style="font-weight: 600">
+                  muscle_weight_kg<span class="field-type">float?</span>
+                </li>
+                <li class="field-item" style="font-weight: 600">
+                  waist_cm<span class="field-type">float?</span>
+                </li>
+                <li class="field-item">
+                  body_fat_kg · skeletal_muscle_kg · ...<span class="field-type"
+                    >+18 fields</span
+                  >
+                </li>
+              </ul>
+              <div
+                style="
+                  padding: 8px 16px;
+                  font-size: 11px;
+                  color: var(--success);
+                  background: #f0fdf4;
+                "
+              >
+                不变 — 本来就是完整定义
+              </div>
+            </div>
+
+            <!-- Readiness AFTER -->
+            <div class="table-card">
+              <div class="table-card-header">
+                <span class="table-icon readiness">🌙</span>
+                readiness_logs
+              </div>
+              <ul class="field-list">
+                <li class="field-item">
+                  sleep_hours, fatigue_score, pain_score, stress_score<span
+                    class="field-type"
+                    >✅ 不变</span
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Flow BEFORE vs AFTER -->
+      <div class="flow-section">
+        <h2>📡 写入路径对比</h2>
+
+        <div style="margin-bottom: 28px">
+          <div class="diff-stats">
+            <div class="diff-stat">
+              <span class="diff-dot" style="background: var(--danger)"></span>
+              迁移前
+            </div>
+          </div>
+          <div class="flow-row" style="margin-bottom: 20px">
+            <div class="flow-col">
+              <div class="flow-label">用户/AI 操作</div>
+              <div class="flow-box">
+                nutrition.create<br /><small>含 body_weight_kg</small>
+              </div>
+              <div class="flow-box">
+                body_metric.upsert<br /><small>含 body_weight_kg</small>
+              </div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-col">
+              <div class="flow-label">写入</div>
+              <div class="flow-box danger">
+                → nutrition_logs<br /><small>body_weight_kg 存这</small>
+              </div>
+              <div class="flow-box success">
+                → body_metrics<br /><small>body_weight_kg 存这</small>
+              </div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-col">
+              <div class="flow-label">Dashboard 读取</div>
+              <div class="flow-box danger">
+                goal_progress<br /><small>从 nutrition_logs 读 ❌</small>
+              </div>
+              <div class="flow-box danger">
+                _weight_trend_weekly<br /><small>从 nutrition_logs 读 ❌</small>
+              </div>
+              <div class="flow-box success">
+                weight_trend<br /><small>合并双源 ✅</small>
+              </div>
+              <div class="flow-box success">
+                body_metrics<br /><small>从 body_metrics 读 ✅</small>
+              </div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-col">
+              <div class="flow-label">结果</div>
+              <div class="flow-box danger">❌ goal_progress 显示旧体重</div>
+              <div class="flow-box danger">❌ 周变化率计算错误</div>
+              <div class="flow-box success">✅ 趋势图正确</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="diff-stats">
+            <div class="diff-stat">
+              <span class="diff-dot" style="background: var(--success)"></span>
+              迁移后
+            </div>
+          </div>
+          <div class="flow-row">
+            <div class="flow-col">
+              <div class="flow-label">用户/AI 操作</div>
+              <div class="flow-box">
+                nutrition.create<br /><small>含 body_weight_kg</small>
+              </div>
+              <div class="flow-box">
+                body_metric.upsert<br /><small>含 body_weight_kg</small>
+              </div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-col">
+              <div class="flow-label">写入</div>
+              <div class="flow-box success">nutrition_logs (仅饮食字段)</div>
+              <div class="flow-box highlight">→ 自动同步 body_weight_kg</div>
+              <div class="flow-box success">body_metrics (所有身体指标)</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-col">
+              <div class="flow-label">唯一真源</div>
+              <div
+                class="flow-box highlight"
+                style="font-size: 14px; padding: 16px"
+              >
+                📊 <strong>body_metrics</strong><br />
+                <small>所有身体指标的唯一数据源</small>
+              </div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-col">
+              <div class="flow-label">Dashboard 读取</div>
+              <div class="flow-box success">goal_progress ✅</div>
+              <div class="flow-box success">weight_trend ✅</div>
+              <div class="flow-box success">_weight_trend_weekly ✅</div>
+              <div class="flow-box success">body_metrics ✅</div>
+              <div class="flow-box success">nutrition.body_weight_kg ✅</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Read Path Fixes -->
+      <div class="flow-section">
+        <h2>🔧 读取路径修复清单</h2>
+        <div class="read-path-grid">
+          <div class="read-card">
+            <h4>_weight_trend_weekly_kg</h4>
+            <p
+              style="
+                font-size: 12px;
+                color: var(--text-secondary);
+                margin-bottom: 8px;
+              "
+            >
+              计算周体重变化率 (线性回归)
+            </p>
+            <span class="source broken"
+              >迁移前: NutritionLogEntity.body_weight_kg</span
+            >
+            <span style="margin: 0 8px">→</span>
+            <span class="source fixed"
+              >迁移后: BodyMetricEntity.body_weight_kg</span
+            >
+          </div>
+          <div class="read-card">
+            <h4>_build_goal_progress.current_weight</h4>
+            <p
+              style="
+                font-size: 12px;
+                color: var(--text-secondary);
+                margin-bottom: 8px;
+              "
+            >
+              目标进度的当前体重
+            </p>
+            <span class="source broken"
+              >迁移前: NutritionLogEntity 最新一条</span
+            >
+            <span style="margin: 0 8px">→</span>
+            <span class="source fixed">迁移后: BodyMetricEntity 最新一条</span>
+          </div>
+          <div class="read-card">
+            <h4>Dashboard goal_progress 响应</h4>
+            <p
+              style="
+                font-size: 12px;
+                color: var(--text-secondary);
+                margin-bottom: 8px;
+              "
+            >
+              透传 _build_goal_progress 结果
+            </p>
+            <span class="source broken"
+              >迁移前: 手动 dict 映射，丢失 7 字段</span
+            >
+            <span style="margin: 0 8px">→</span>
+            <span class="source fixed">迁移后: .model_dump() 完整透传</span>
+          </div>
+          <div class="read-card">
+            <h4>Dashboard nutrition 响应</h4>
+            <p
+              style="
+                font-size: 12px;
+                color: var(--text-secondary);
+                margin-bottom: 8px;
+              "
+            >
+              补 body_weight_kg 字段
+            </p>
+            <span class="source broken">迁移前: 字段缺失</span>
+            <span style="margin: 0 8px">→</span>
+            <span class="source fixed">迁移后: 从 BodyMetricEntity 补齐</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Migration Summary -->
+      <div class="flow-section">
+        <h2>📋 迁移步骤总览</h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px">
+          <thead>
+            <tr
+              style="border-bottom: 2px solid var(--border); text-align: left"
+            >
+              <th style="padding: 10px 16px">#</th>
+              <th style="padding: 10px 16px">步骤</th>
+              <th style="padding: 10px 16px">操作</th>
+              <th style="padding: 10px 16px">影响范围</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid var(--border)">
+              <td
+                style="
+                  padding: 10px 16px;
+                  color: var(--accent);
+                  font-weight: 700;
+                "
+              >
+                1
+              </td>
+              <td style="padding: 10px 16px; font-weight: 600">迁移历史数据</td>
+              <td style="padding: 10px 16px">
+                nutrition_logs 中有体重数据 → INSERT INTO body_metrics
+                (同日期已存在则跳过)
+              </td>
+              <td
+                style="
+                  padding: 10px 16px;
+                  font-size: 11px;
+                  color: var(--text-secondary);
+                "
+              >
+                现有 SQLite 数据库
+              </td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border)">
+              <td
+                style="
+                  padding: 10px 16px;
+                  color: var(--accent);
+                  font-weight: 700;
+                "
+              >
+                2
+              </td>
+              <td style="padding: 10px 16px; font-weight: 600">
+                删除 nutrition_logs 冗余列
+              </td>
+              <td style="padding: 10px 16px">
+                重建 nutrition_logs 表 (SQLite 不支持 DROP COLUMN)
+              </td>
+              <td
+                style="
+                  padding: 10px 16px;
+                  font-size: 11px;
+                  color: var(--text-secondary);
+                "
+              >
+                entities.py + SQLite DDL
+              </td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border)">
+              <td
+                style="
+                  padding: 10px 16px;
+                  color: var(--accent);
+                  font-weight: 700;
+                "
+              >
+                3
+              </td>
+              <td style="padding: 10px 16px; font-weight: 600">
+                更新 Python 模型
+              </td>
+              <td style="padding: 10px 16px">
+                NutritionLogCreate/Update 删除 4 字段
+              </td>
+              <td
+                style="
+                  padding: 10px 16px;
+                  font-size: 11px;
+                  color: var(--text-secondary);
+                "
+              >
+                models.py
+              </td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border)">
+              <td
+                style="
+                  padding: 10px 16px;
+                  color: var(--accent);
+                  font-weight: 700;
+                "
+              >
+                4
+              </td>
+              <td style="padding: 10px 16px; font-weight: 600">
+                nutrition.create 自动同步
+              </td>
+              <td style="padding: 10px 16px">
+                payload 中的体测字段 → 额外调用 _upsert_body_metric
+              </td>
+              <td
+                style="
+                  padding: 10px 16px;
+                  font-size: 11px;
+                  color: var(--text-secondary);
+                "
+              >
+                main.py _action_nutrition_create
+              </td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border)">
+              <td
+                style="
+                  padding: 10px 16px;
+                  color: var(--accent);
+                  font-weight: 700;
+                "
+              >
+                5
+              </td>
+              <td style="padding: 10px 16px; font-weight: 600">
+                修复读取路径 ×4
+              </td>
+              <td style="padding: 10px 16px">
+                切换数据源到 BodyMetricEntity + 补全字段
+              </td>
+              <td
+                style="
+                  padding: 10px 16px;
+                  font-size: 11px;
+                  color: var(--text-secondary);
+                "
+              >
+                main.py 3 个函数
+              </td>
+            </tr>
+            <tr>
+              <td
+                style="
+                  padding: 10px 16px;
+                  color: var(--accent);
+                  font-weight: 700;
+                "
+              >
+                6
+              </td>
+              <td style="padding: 10px 16px; font-weight: 600">同步前端接口</td>
+              <td style="padding: 10px 16px">
+                删除 TypeScript NutritionLogCreate 4 字段
+              </td>
+              <td
+                style="
+                  padding: 10px 16px;
+                  font-size: 11px;
+                  color: var(--text-secondary);
+                "
+              >
+                desktop/src/api/client.ts
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+</html>

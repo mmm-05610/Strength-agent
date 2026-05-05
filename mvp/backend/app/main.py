@@ -1128,10 +1128,18 @@ def list_nutrition(days: int = Query(default=7, ge=1, le=90), db: Session = Depe
 
 @app.post("/api/v1/nutrition", response_model=NutritionLog)
 def create_nutrition(payload: NutritionLogCreate, db: Session = Depends(get_db)) -> NutritionLog:
-    item = NutritionLogEntity(**payload.model_dump())
+    data = payload.model_dump()
+    body_kwargs = {}
+    for k in _BODY_FIELD_NAMES:
+        v = data.pop(k, None)
+        if v is not None:
+            body_kwargs[k] = v
+    item = NutritionLogEntity(**data)
     db.add(item)
     db.flush()
     db.refresh(item)
+    if body_kwargs:
+        _insert_body_metric(db, log_date=payload.log_date, source="nutrition_sync", **body_kwargs)
     return _to_nutrition_schema(item)
 
 
@@ -1142,8 +1150,7 @@ def update_nutrition(log_id: int, payload: NutritionLogUpdate, db: Session = Dep
         raise HTTPException(status_code=404, detail="Nutrition log not found")
     for field_name in (
         "log_date", "calories_kcal", "protein_g", "carbs_g", "fat_g",
-        "water_liters", "body_weight_kg", "body_fat_rate_pct",
-        "muscle_weight_kg", "waist_cm", "notes",
+        "water_liters", "notes",
     ):
         val = getattr(payload, field_name, None)
         if val is not None:
@@ -1198,7 +1205,7 @@ def upsert_body_metric(payload: BodyMetricCreate, db: Session = Depends(get_db))
     if payload.height_cm is not None:
         set_setting(db, "height_cm", payload.height_cm)
 
-    item = _upsert_body_metric(
+    item = _insert_body_metric(
         db,
         log_date=payload.log_date,
         body_weight_kg=payload.body_weight_kg,
@@ -1318,7 +1325,7 @@ async def ocr_body_metrics(
     metric_date = captured_date or date.today()
 
     if not volcengine_ocr_client.is_configured():
-        metric_row = _upsert_body_metric(
+        metric_row = _insert_body_metric(
             db,
             log_date=metric_date,
             body_weight_kg=None,
@@ -1345,7 +1352,7 @@ async def ocr_body_metrics(
         elif err.response is not None and err.response.status_code in (401, 403):
             status = "not_configured"
             message = "OCR auth failed (check VOLCENGINE credentials/signature)"
-        metric_row = _upsert_body_metric(
+        metric_row = _insert_body_metric(
             db,
             log_date=metric_date,
             body_weight_kg=None,
@@ -1361,7 +1368,7 @@ async def ocr_body_metrics(
             raw_output=getattr(err.response, "text", None),
         )
     except Exception as err:
-        metric_row = _upsert_body_metric(
+        metric_row = _insert_body_metric(
             db,
             log_date=metric_date,
             body_weight_kg=None,
@@ -1377,7 +1384,7 @@ async def ocr_body_metrics(
             raw_output=None,
         )
 
-    metric_row = _upsert_body_metric(
+    metric_row = _insert_body_metric(
         db,
         log_date=metric_date,
         body_weight_kg=ocr.body_weight_kg,
@@ -1807,7 +1814,6 @@ def _execute_tool(db_session_factory, tool_name: str, tool_args: dict[str, Any])
                 "nutrition": {
                     "latest_calories": latest_nutrition.calories_kcal if latest_nutrition else None,
                     "latest_protein_g": latest_nutrition.protein_g if latest_nutrition else None,
-                    "latest_weight_kg": latest_nutrition.body_weight_kg if latest_nutrition else None,
                 },
                 "recovery": {
                     "latest_sleep_hours": latest_readiness.sleep_hours if latest_readiness else None,

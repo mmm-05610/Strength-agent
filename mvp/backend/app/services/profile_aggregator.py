@@ -92,7 +92,6 @@ def aggregate_user_profile(db: Session) -> dict:
             "avg_protein_g": round(mean(n.protein_g for n in nutrition_rows), 1),
             "avg_carbs_g": round(mean(n.carbs_g for n in nutrition_rows), 1),
             "avg_fat_g": round(mean(n.fat_g for n in nutrition_rows), 1),
-            "latest_weight_kg": nutrition_rows[0].body_weight_kg,
             "latest_date": str(nutrition_rows[0].log_date),
         }
 
@@ -104,13 +103,14 @@ def aggregate_user_profile(db: Session) -> dict:
     body_metrics = {}
     if latest_metric:
         body_metrics = {
+            "body_weight_kg": latest_metric.body_weight_kg,
             "body_fat_rate_pct": latest_metric.body_fat_rate_pct,
             "muscle_weight_kg": latest_metric.muscle_weight_kg,
             "latest_date": str(latest_metric.log_date),
         }
 
-    # Current weight (prefer nutrition log, fallback to goal start)
-    current_weight = nutrition_summary.get("latest_weight_kg") or float(
+    # Current weight (prefer body_metrics, fallback to goal start)
+    current_weight = body_metrics.get("body_weight_kg") or float(
         goal.get("start_weight_kg", 65.0)
     )
     current_body_fat = body_metrics.get("body_fat_rate_pct")

@@ -29,5 +29,6 @@ mvp/backend/uploads/*
 
 # Logs
 *.log
+mvp/backend/log/
 nul
 _references/

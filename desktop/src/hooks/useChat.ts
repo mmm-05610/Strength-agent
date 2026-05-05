@@ -9,17 +9,42 @@ import {
   type ChatHistoryMessage,
 } from "../api/client";
 
+export interface ToolCallEvent {
+  id: string;
+  tool_name: string;
+  arguments: string;
+  result?: {
+    success?: boolean;
+    message?: string;
+    error?: string;
+    rendered?: string;
+    form_schema?: Record<string, unknown>;
+    chart_config?: Record<string, unknown>;
+    submitted?: boolean;
+    submitted_data?: Record<string, unknown>;
+    changes?: Array<{
+      key: string;
+      label: string;
+      before: string;
+      after: string;
+    }>;
+  };
+}
+
 export interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  images?: string[];
   ragSources?: RagSource[];
   proposals?: ChangeProposal[];
   isStreaming?: boolean;
   thinkingTimeMs?: number;
   thinkingProcess?: string;
+  thinkingContent?: string;
   tokensUsed?: number;
+  toolCalls?: ToolCallEvent[];
 }
 
 function formatTime(iso: string): string {
@@ -51,6 +76,8 @@ export function useChat() {
   const [totalCost, setTotalCost] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [thinkingMode, setThinkingMode] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<string>("");
   const initializedRef = useRef(false);
 
   // Load persisted chat history on mount
@@ -75,7 +102,7 @@ export function useChat() {
   }, []);
 
   const chat = useCallback(
-    async (userInput: string) => {
+    async (userInput: string, images?: string[]) => {
       const now = new Date();
       const userTs = formatTime(now.toISOString());
 
@@ -84,6 +111,7 @@ export function useChat() {
         role: "user",
         content: userInput,
         timestamp: userTs,
+        images,
       };
       addMessage(userMsg);
 
@@ -94,12 +122,14 @@ export function useChat() {
         content: "",
         timestamp: "",
         isStreaming: true,
+        thinkingContent: "",
       };
       setMessages((prev) => [...prev, assistantMsg]);
 
       setIsLoading(true);
       setError(null);
 
+      // Build chat messages from the current conversation (excluding streaming assistant)
       const chatMessages: ChatMessage[] = messages
         .concat(userMsg)
         .map((m) => ({ role: m.role, content: m.content }));
@@ -135,7 +165,6 @@ export function useChat() {
           setRouteTier(meta.route_tier);
           setTotalCost((prev) => prev + meta.cost);
 
-          // Emit status update event
           window.dispatchEvent(
             new CustomEvent("chat-status", {
               detail: {
@@ -148,12 +177,28 @@ export function useChat() {
 
           setIsLoading(false);
 
-          // Check for profile change proposals
           fetchPendingProposals().then((proposals) => {
-            if (proposals.length > 0) {
+            // Filter: only meaningful changes, max 3 proposals per message
+            const meaningful = proposals
+              .filter((p) => {
+                if (p.status !== "pending") return false;
+                if (p.old_value == null && p.new_value == null) return false;
+                if (p.old_value === p.new_value) return false;
+                if (
+                  typeof p.old_value === "object" &&
+                  typeof p.new_value === "object"
+                ) {
+                  return (
+                    JSON.stringify(p.old_value) !== JSON.stringify(p.new_value)
+                  );
+                }
+                return true;
+              })
+              .slice(0, 3);
+            if (meaningful.length > 0) {
               setMessages((prev) =>
                 prev.map((m) =>
-                  m.id === assistantId ? { ...m, proposals } : m,
+                  m.id === assistantId ? { ...m, proposals: meaningful } : m,
                 ),
               );
             }
@@ -176,9 +221,46 @@ export function useChat() {
           );
           setIsLoading(false);
         },
+        // onThinking
+        (token) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? { ...m, thinkingContent: (m.thinkingContent || "") + token }
+                : m,
+            ),
+          );
+        },
+        // onToolCall
+        (toolCall) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? { ...m, toolCalls: [...(m.toolCalls || []), toolCall] }
+                : m,
+            ),
+          );
+        },
+        // onToolResult
+        (id, result) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId && m.toolCalls
+                ? {
+                    ...m,
+                    toolCalls: m.toolCalls.map((tc) =>
+                      tc.id === id ? { ...tc, result } : tc,
+                    ),
+                  }
+                : m,
+            ),
+          );
+        },
+        // options
+        { thinkingMode, model: selectedModel || undefined, images },
       );
     },
-    [messages, addMessage],
+    [messages, addMessage, thinkingMode, selectedModel],
   );
 
   const clearChat = useCallback(() => {
@@ -187,6 +269,37 @@ export function useChat() {
     setError(null);
   }, []);
 
+  const markToolCallSubmitted = useCallback(
+    (
+      toolCallId: string,
+      submissionResult: {
+        submitted: true;
+        submitted_data: Record<string, unknown>;
+        changes?: Array<{
+          key: string;
+          label: string;
+          before: string;
+          after: string;
+        }>;
+      },
+    ) => {
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (!msg.toolCalls) return msg;
+          return {
+            ...msg,
+            toolCalls: msg.toolCalls.map((tc) =>
+              tc.id === toolCallId
+                ? { ...tc, result: { ...tc.result, ...submissionResult } }
+                : tc,
+            ),
+          };
+        }),
+      );
+    },
+    [],
+  );
+
   return {
     messages,
     isLoading,
@@ -194,7 +307,12 @@ export function useChat() {
     totalCost,
     error,
     historyLoaded,
+    thinkingMode,
+    setThinkingMode,
+    selectedModel,
+    setSelectedModel,
     chat,
     clearChat,
+    markToolCallSubmitted,
   };
 }

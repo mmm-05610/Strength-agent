@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
+import json
 import os
 import time
 import uuid
@@ -15,6 +16,8 @@ from sse_starlette.sse import EventSourceResponse
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session, selectinload
 
+from .actions import ActionRequest
+from .action_registry import ActionDef, ActionRegistry
 from .db import get_db, get_setting, init_db, list_settings, set_setting
 from .entities import (
     AuditLogEntity,
@@ -66,11 +69,12 @@ from .models import (
 from .rule_engine import suggest_today_plan
 from .services.cost_router import estimate_cost_rmb, get_month_spent_rmb, load_cost_config, pick_tier
 from .services.deepseek_client import DeepSeekClient
+from .services.food_recognition import food_client as _food_client
 from .services.inbody_ocr import run_inbody_ocr_with_volcengine
 from .services.volcengine_ocr_client import VolcengineOcrClient
 from .services.rag_pipeline import rag_pipeline as _rag_pipeline
 from .services.profile_aggregator import aggregate_user_profile, profile_to_prompt_context
-from .services.profile_extractor import extract_profile_changes
+
 
 
 def _load_local_env() -> None:
@@ -135,9 +139,137 @@ WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 @app.on_event("startup")
 def on_startup() -> None:
     init_db()
+    db = next(get_db())
+    try:
+        _migrate_body_metrics_schema(db)
+        _migrate_nutrition_logs_schema(db)
+    finally:
+        db.close()
     # Preload RAG knowledge base in background
     import threading
     threading.Thread(target=_rag_pipeline.ensure_loaded, daemon=True).start()
+
+
+def _migrate_body_metrics_schema(db: Session) -> None:
+    """v0.3.0: 去掉 body_metrics.log_date UNIQUE + 新增 source 列"""
+    engine = db.get_bind()
+    if engine.dialect.name != "sqlite":
+        return
+
+    raw = engine.raw_connection()
+    try:
+        cur = raw.cursor()
+        cur.execute("PRAGMA table_info(body_metrics)")
+        cols = [r[1] for r in cur.fetchall()]
+        if "source" in cols:
+            return  # 已迁移
+
+        cur.executescript("""
+            CREATE TABLE body_metrics_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                log_date DATE NOT NULL,
+                body_weight_kg FLOAT,
+                body_fat_rate_pct FLOAT,
+                body_fat_kg FLOAT,
+                muscle_weight_kg FLOAT,
+                skeletal_muscle_kg FLOAT,
+                body_water_kg FLOAT,
+                protein_kg FLOAT,
+                minerals_kg FLOAT,
+                left_upper_muscle_kg FLOAT,
+                right_upper_muscle_kg FLOAT,
+                left_lower_muscle_kg FLOAT,
+                right_lower_muscle_kg FLOAT,
+                trunk_muscle_kg FLOAT,
+                left_upper_fat_kg FLOAT,
+                right_upper_fat_kg FLOAT,
+                left_lower_fat_kg FLOAT,
+                right_lower_fat_kg FLOAT,
+                trunk_fat_kg FLOAT,
+                waist_cm FLOAT,
+                hip_cm FLOAT,
+                inbody_score INTEGER,
+                bmr_kcal INTEGER,
+                source VARCHAR(32) NOT NULL DEFAULT 'manual',
+                source_asset_id INTEGER REFERENCES knowledge_assets(id) ON DELETE SET NULL,
+                created_at DATETIME NOT NULL DEFAULT (datetime('now'))
+            );
+            INSERT INTO body_metrics_new (
+                id, log_date, body_weight_kg, body_fat_rate_pct, body_fat_kg,
+                muscle_weight_kg, skeletal_muscle_kg, body_water_kg, protein_kg,
+                minerals_kg, left_upper_muscle_kg, right_upper_muscle_kg,
+                left_lower_muscle_kg, right_lower_muscle_kg, trunk_muscle_kg,
+                left_upper_fat_kg, right_upper_fat_kg, left_lower_fat_kg,
+                right_lower_fat_kg, trunk_fat_kg, waist_cm, hip_cm,
+                inbody_score, bmr_kcal, source_asset_id, created_at
+            )
+            SELECT
+                id, log_date, body_weight_kg, body_fat_rate_pct, body_fat_kg,
+                muscle_weight_kg, skeletal_muscle_kg, body_water_kg, protein_kg,
+                minerals_kg, left_upper_muscle_kg, right_upper_muscle_kg,
+                left_lower_muscle_kg, right_lower_muscle_kg, trunk_muscle_kg,
+                left_upper_fat_kg, right_upper_fat_kg, left_lower_fat_kg,
+                right_lower_fat_kg, trunk_fat_kg, waist_cm, hip_cm,
+                inbody_score, bmr_kcal, source_asset_id, created_at
+            FROM body_metrics;
+            DROP TABLE body_metrics;
+            ALTER TABLE body_metrics_new RENAME TO body_metrics;
+            CREATE INDEX IF NOT EXISTS ix_body_metrics_log_date ON body_metrics(log_date);
+            CREATE INDEX IF NOT EXISTS ix_body_metrics_source_asset_id ON body_metrics(source_asset_id);
+        """)
+        raw.commit()
+    finally:
+        raw.close()
+
+
+def _migrate_nutrition_logs_schema(db: Session) -> None:
+    """v0.3.0: nutrition_logs 删除 4 个身体指标字段, 历史数据迁移到 body_metrics"""
+    engine = db.get_bind()
+    if engine.dialect.name != "sqlite":
+        return
+
+    raw = engine.raw_connection()
+    try:
+        cur = raw.cursor()
+        cur.execute("PRAGMA table_info(nutrition_logs)")
+        cols = [r[1] for r in cur.fetchall()]
+        if "body_weight_kg" not in cols:
+            return  # 已迁移
+
+        # 1. 迁移历史数据: nutrition_logs 中有体测数据 → body_metrics (同日期跳过)
+        cur.execute("""
+            INSERT OR IGNORE INTO body_metrics (log_date, body_weight_kg, body_fat_rate_pct, muscle_weight_kg, waist_cm, source)
+            SELECT log_date, body_weight_kg, body_fat_rate_pct, muscle_weight_kg, waist_cm, 'nutrition_migrate'
+            FROM nutrition_logs
+            WHERE body_weight_kg IS NOT NULL
+               OR body_fat_rate_pct IS NOT NULL
+               OR muscle_weight_kg IS NOT NULL
+               OR waist_cm IS NOT NULL
+        """)
+
+        # 2. 重建 nutrition_logs 表(不含 4 列)
+        cur.executescript("""
+            CREATE TABLE nutrition_logs_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                log_date DATE NOT NULL,
+                calories_kcal INTEGER NOT NULL,
+                protein_g FLOAT NOT NULL,
+                carbs_g FLOAT NOT NULL,
+                fat_g FLOAT NOT NULL,
+                water_liters FLOAT NOT NULL,
+                notes TEXT NOT NULL DEFAULT '',
+                created_at DATETIME NOT NULL DEFAULT (datetime('now'))
+            );
+            INSERT INTO nutrition_logs_new (id, log_date, calories_kcal, protein_g, carbs_g, fat_g, water_liters, notes, created_at)
+            SELECT id, log_date, calories_kcal, protein_g, carbs_g, fat_g, water_liters, notes, created_at
+            FROM nutrition_logs;
+            DROP TABLE nutrition_logs;
+            ALTER TABLE nutrition_logs_new RENAME TO nutrition_logs;
+            CREATE INDEX IF NOT EXISTS ix_nutrition_logs_log_date ON nutrition_logs(log_date);
+        """)
+        raw.commit()
+    finally:
+        raw.close()
 
 
 def _to_workout_schema(item: WorkoutSessionEntity) -> WorkoutSession:
@@ -182,10 +314,6 @@ def _to_nutrition_schema(item: NutritionLogEntity) -> NutritionLog:
         carbs_g=item.carbs_g,
         fat_g=item.fat_g,
         water_liters=item.water_liters,
-        body_weight_kg=item.body_weight_kg,
-        body_fat_rate_pct=item.body_fat_rate_pct,
-        muscle_weight_kg=item.muscle_weight_kg,
-        waist_cm=item.waist_cm,
         notes=item.notes,
         created_at=item.created_at,
     )
@@ -352,7 +480,7 @@ def _get_setting_standalone(key: str, default=None):
         s.close()
 
 
-def _upsert_body_metric(
+def _insert_body_metric(
     db: Session,
     log_date: date,
     body_weight_kg: float | None = None,
@@ -377,26 +505,9 @@ def _upsert_body_metric(
     hip_cm: float | None = None,
     inbody_score: int | None = None,
     bmr_kcal: int | None = None,
+    source: str = "manual",
     source_asset_id: int | None = None,
 ) -> BodyMetricEntity:
-    existing = db.scalar(select(BodyMetricEntity).where(BodyMetricEntity.log_date == log_date))
-    if existing is not None:
-        for field_name in (
-            "body_weight_kg", "body_fat_rate_pct", "body_fat_kg", "muscle_weight_kg",
-            "skeletal_muscle_kg", "body_water_kg", "protein_kg", "minerals_kg",
-            "left_upper_muscle_kg", "right_upper_muscle_kg",
-            "left_lower_muscle_kg", "right_lower_muscle_kg", "trunk_muscle_kg",
-            "left_upper_fat_kg", "right_upper_fat_kg",
-            "left_lower_fat_kg", "right_lower_fat_kg", "trunk_fat_kg",
-            "waist_cm", "hip_cm", "inbody_score", "bmr_kcal", "source_asset_id",
-        ):
-            val = locals().get(field_name)
-            if val is not None:
-                setattr(existing, field_name, val)
-        db.flush()
-        db.refresh(existing)
-        return existing
-
     item = BodyMetricEntity(
         log_date=log_date,
         body_weight_kg=body_weight_kg,
@@ -421,12 +532,138 @@ def _upsert_body_metric(
         hip_cm=hip_cm,
         inbody_score=inbody_score,
         bmr_kcal=bmr_kcal,
+        source=source,
         source_asset_id=source_asset_id,
     )
     db.add(item)
     db.flush()
     db.refresh(item)
     return item
+
+
+# ── Action handlers (wrappers for ActionRegistry) ──────────────────────────
+
+async def _action_body_metric_upsert(payload: BodyMetricCreate, db: Session) -> dict:
+    if payload.height_cm is not None:
+        set_setting(db, "height_cm", payload.height_cm)
+    item = _insert_body_metric(
+        db, log_date=payload.log_date, body_weight_kg=payload.body_weight_kg,
+        body_fat_rate_pct=payload.body_fat_rate_pct, body_fat_kg=payload.body_fat_kg,
+        muscle_weight_kg=payload.muscle_weight_kg, skeletal_muscle_kg=payload.skeletal_muscle_kg,
+        body_water_kg=payload.body_water_kg, protein_kg=payload.protein_kg,
+        minerals_kg=payload.minerals_kg,
+        left_upper_muscle_kg=payload.left_upper_muscle_kg,
+        right_upper_muscle_kg=payload.right_upper_muscle_kg,
+        left_lower_muscle_kg=payload.left_lower_muscle_kg,
+        right_lower_muscle_kg=payload.right_lower_muscle_kg,
+        trunk_muscle_kg=payload.trunk_muscle_kg,
+        left_upper_fat_kg=payload.left_upper_fat_kg,
+        right_upper_fat_kg=payload.right_upper_fat_kg,
+        left_lower_fat_kg=payload.left_lower_fat_kg,
+        right_lower_fat_kg=payload.right_lower_fat_kg,
+        trunk_fat_kg=payload.trunk_fat_kg,
+        waist_cm=payload.waist_cm, hip_cm=payload.hip_cm,
+        inbody_score=payload.inbody_score, bmr_kcal=payload.bmr_kcal,
+        source=payload.source,
+        source_asset_id=payload.source_asset_id,
+    )
+    return {"id": item.id, "log_date": str(item.log_date)}
+
+
+_BODY_FIELD_NAMES = ("body_weight_kg", "body_fat_rate_pct", "muscle_weight_kg", "waist_cm")
+
+
+async def _action_nutrition_create(payload: NutritionLogCreate, db: Session) -> dict:
+    data = payload.model_dump()
+    body_kwargs = {}
+    for k in _BODY_FIELD_NAMES:
+        v = data.pop(k, None)
+        if v is not None:
+            body_kwargs[k] = v
+
+    item = NutritionLogEntity(**data)
+    db.add(item)
+    db.flush()
+    db.refresh(item)
+
+    if body_kwargs:
+        _insert_body_metric(db, log_date=payload.log_date, source="nutrition_sync", **body_kwargs)
+
+    return {"id": item.id}
+
+
+async def _action_workout_create(payload: WorkoutSessionCreate, db: Session) -> dict:
+    item = WorkoutSessionEntity(
+        training_date=payload.training_date, focus_area=payload.focus_area, notes=payload.notes,
+    )
+    db.add(item)
+    db.flush()
+    for s in payload.exercise_sets:
+        db.add(WorkoutSetEntity(
+            workout_session_id=item.id, exercise_name=s.exercise_name,
+            equipment=s.equipment, sets=s.sets, reps=s.reps,
+            weight_kg=s.weight_kg, rpe=s.rpe,
+        ))
+    db.flush()
+    db.refresh(item)
+    return {"id": item.id}
+
+
+async def _action_readiness_create(payload: ReadinessLogCreate, db: Session) -> dict:
+    item = ReadinessLogEntity(**payload.model_dump())
+    db.add(item)
+    db.flush()
+    db.refresh(item)
+    return {"id": item.id}
+
+
+async def _action_goal_update(payload: GoalConfig, db: Session) -> dict:
+    set_setting(db, "goal_tracking", payload.model_dump(mode="json"))
+    db.flush()
+    return {"updated": True}
+
+
+# ── Action registration (executed at module load) ─────────────────────────
+
+ActionRegistry.register(ActionDef(
+    name="body_metric.upsert",
+    description="创建或更新身体指标记录。字段: log_date, body_weight_kg, body_fat_rate_pct, body_fat_kg, muscle_weight_kg, skeletal_muscle_kg, body_water_kg, protein_kg, minerals_kg, left_upper_muscle_kg, right_upper_muscle_kg, left_lower_muscle_kg, right_lower_muscle_kg, trunk_muscle_kg, left_upper_fat_kg, right_upper_fat_kg, left_lower_fat_kg, right_lower_fat_kg, trunk_fat_kg, waist_cm, hip_cm, inbody_score, bmr_kcal, height_cm, source_asset_id",
+    schema=BodyMetricCreate,
+    handler=_action_body_metric_upsert,
+    refresh_tags=["body_metrics", "dashboard"],
+))
+
+ActionRegistry.register(ActionDef(
+    name="nutrition.create",
+    description="记录一餐饮食。字段: log_date, calories_kcal, protein_g, carbs_g, fat_g, water_liters, body_weight_kg, body_fat_rate_pct, muscle_weight_kg, waist_cm, notes",
+    schema=NutritionLogCreate,
+    handler=_action_nutrition_create,
+    refresh_tags=["nutrition", "dashboard"],
+))
+
+ActionRegistry.register(ActionDef(
+    name="workout.create",
+    description="记录一次训练。字段: training_date, focus_area, notes, exercise_sets[{exercise_name, equipment, sets, reps, weight_kg, rpe}]",
+    schema=WorkoutSessionCreate,
+    handler=_action_workout_create,
+    refresh_tags=["training", "dashboard"],
+))
+
+ActionRegistry.register(ActionDef(
+    name="readiness.create",
+    description="记录每日恢复状态。字段: log_date, sleep_hours, fatigue_score, pain_score, stress_score",
+    schema=ReadinessLogCreate,
+    handler=_action_readiness_create,
+    refresh_tags=["readiness", "dashboard"],
+))
+
+ActionRegistry.register(ActionDef(
+    name="goal.update",
+    description="更新目标设置。字段: goal_type(muscle_gain/fat_loss/maintenance), start_date, target_date, start_weight_kg, target_weight_kg, start_muscle_kg, target_muscle_kg",
+    schema=GoalConfig,
+    handler=_action_goal_update,
+    refresh_tags=["goals", "dashboard"],
+))
 
 
 def _to_change_proposal_schema(item: ChangeProposalEntity) -> ChangeProposal:
@@ -522,9 +759,13 @@ def _load_goal_config(db: Session) -> GoalConfig:
 def _weight_trend_weekly_kg(db: Session, end_date: date) -> float | None:
     start_window = end_date.fromordinal(end_date.toordinal() - 27)
     rows = db.scalars(
-        select(NutritionLogEntity)
-        .where(NutritionLogEntity.body_weight_kg.is_not(None), NutritionLogEntity.log_date >= start_window, NutritionLogEntity.log_date <= end_date)
-        .order_by(NutritionLogEntity.log_date.asc(), NutritionLogEntity.id.asc())
+        select(BodyMetricEntity)
+        .where(
+            BodyMetricEntity.body_weight_kg.is_not(None),
+            BodyMetricEntity.log_date >= start_window,
+            BodyMetricEntity.log_date <= end_date,
+        )
+        .order_by(BodyMetricEntity.log_date.asc(), BodyMetricEntity.id.asc())
     ).all()
 
     if len(rows) < 2:
@@ -548,9 +789,9 @@ def _weight_trend_weekly_kg(db: Session, end_date: date) -> float | None:
 
 def _build_goal_progress(db: Session, config: GoalConfig) -> GoalProgress:
     latest_weight_row = db.scalar(
-        select(NutritionLogEntity)
-        .where(NutritionLogEntity.body_weight_kg.is_not(None))
-        .order_by(desc(NutritionLogEntity.log_date), desc(NutritionLogEntity.id))
+        select(BodyMetricEntity)
+        .where(BodyMetricEntity.body_weight_kg.is_not(None))
+        .order_by(desc(BodyMetricEntity.log_date), desc(BodyMetricEntity.id))
     )
 
     current_weight = float(latest_weight_row.body_weight_kg) if latest_weight_row else float(config.start_weight_kg)
@@ -689,6 +930,21 @@ def get_plan_state(db: Session = Depends(get_db)) -> PlanState:
         cycle_start_date=cycle_start_date,
         cycle_day_plan=cycle_day_plan,
     )
+
+
+# ── Unified Action Layer ──────────────────────────────────────────────────
+
+
+@app.get("/api/v1/actions")
+async def list_actions() -> list[dict[str, Any]]:
+    """返回所有可用 action 及字段 schema — AI 用于发现系统能力."""
+    return ActionRegistry.list_actions()
+
+
+@app.post("/api/v1/actions")
+async def dispatch_action(req: ActionRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """统一 action 分发 — 所有数据写操作的唯一入口."""
+    return await ActionRegistry.dispatch(req.action, req.payload, db)
 
 
 @app.get("/api/v1/goals", response_model=GoalConfig)
@@ -1206,6 +1462,13 @@ def approve_proposal(proposal_id: int, payload: ApproveProposalRequest, db: Sess
     if proposal.status != "pending":
         raise HTTPException(status_code=409, detail="Proposal already resolved")
 
+    if payload.rejected:
+        proposal.status = "rejected"
+        proposal.resolved_at = datetime.utcnow()
+        db.flush()
+        db.refresh(proposal)
+        return _to_change_proposal_schema(proposal)
+
     proposal.status = "approved"
     proposal.resolved_at = datetime.utcnow()
 
@@ -1397,26 +1660,352 @@ def ai_recommendation(payload: AiRecommendationRequest, db: Session = Depends(ge
     )
 
 
+# ---------------------------------------------------------------------------
+# AI Tool definitions (OpenAI/DeepSeek function-calling format)
+# ---------------------------------------------------------------------------
+
+AI_TOOLS: list[dict[str, Any]] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_dashboard_data",
+            "description": "获取用户当前的仪表盘数据概览，包括训练、恢复、饮食、身体成分、目标进度、身高",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "render_form",
+            "description": (
+                "输出一个可填写的表单JSON Schema，前端会自动渲染为交互式表单。\n"
+                "当用户想要记录数据时，你必须使用此工具生成表单，让用户自己确认填写。\n"
+                "绝对不允许直接修改用户数据。\n"
+                "action 必须是 get_available_actions 返回列表中的某个 name。\n"
+                "字段 key 必须与对应 action schema 的 property 名完全一致。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "表单标题"},
+                    "description": {"type": "string", "description": "表单说明，解释用户填写后会发生什么"},
+                    "action": {
+                        "type": "string",
+                        "enum": ["body_metric.upsert", "nutrition.create", "workout.create", "readiness.create", "goal.update"],
+                        "description": "数据写入 action 名称。body_metric.upsert(身体指标)/nutrition.create(饮食)/workout.create(训练)/readiness.create(恢复)/goal.update(目标)",
+                    },
+                    "fields": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "key": {"type": "string", "description": "字段键名，必须与对应 action schema 的 property 名完全一致"},
+                                "label": {"type": "string", "description": "中文标签"},
+                                "type": {"type": "string", "enum": ["number", "integer", "string", "date", "select"], "description": "字段类型"},
+                                "unit": {"type": "string", "description": "单位，如 kg, %, kcal, cm"},
+                                "required": {"type": "boolean", "description": "是否必填"},
+                                "placeholder": {"type": "string", "description": "占位提示文本（如'请输入体重'），不要填实际数值——用 default_value 预填"},
+                                "min": {"type": "number", "description": "最小值"},
+                                "max": {"type": "number", "description": "最大值"},
+                                "options": {"type": "array", "items": {"type": "string"}, "description": "select类型的选项"},
+                                "default_value": {"description": "预填默认值，从用户消息中提取的具体数值。如用户说'身高191cm'则default_value=191。和placeholder完全不同——default_value会预填进表单"},
+                            },
+                            "required": ["key", "label", "type"],
+                        },
+                        "description": "表单字段列表",
+                    },
+                },
+                "required": ["title", "action", "fields"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_available_actions",
+            "description": "获取所有可用的数据修改 action 列表及其字段 schema。在需要生成 render_form 之前调用此工具，以获取准确的字段定义（字段名、类型、约束）。",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "render_chart",
+            "description": "输出图表配置JSON，前端会自动渲染为可视化图表。支持 line（趋势）、bar（对比）、pie（占比）、gauge（仪表盘）。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "chart_type": {"type": "string", "enum": ["line", "bar", "pie", "gauge"], "description": "图表类型"},
+                    "title": {"type": "string", "description": "图表标题"},
+                    "labels": {"type": "array", "items": {"type": "string"}, "description": "X轴/分类标签"},
+                    "datasets": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "label": {"type": "string", "description": "数据集名称"},
+                                "data": {"type": "array", "items": {"type": "number"}, "description": "数据值"},
+                                "color": {"type": "string", "description": "颜色 hex"},
+                            },
+                            "required": ["label", "data"],
+                        },
+                        "description": "数据集",
+                    },
+                },
+                "required": ["chart_type", "title", "labels", "datasets"],
+            },
+        },
+    },
+]
+
+
+# Schema params consumed by each tool handler (for unused_param detection).
+# Keys not in this set are silently ignored by the handler -> data loss risk.
+_CONSUMED_PARAMS: dict[str, set[str]] = {
+    "get_dashboard_data": set(),
+    "render_form": {"title", "description", "action", "fields"},
+    "render_chart": {"chart_type", "title", "labels", "datasets"},
+    "get_available_actions": set(),
+}
+
+LOG_DIR = Path(__file__).resolve().parents[2] / "log"
+_AUDIT_LOG = LOG_DIR / "_tool_audit.jsonl"
+
+
+def _write_tool_audit(tool_name: str, args: dict[str, Any], result: dict[str, Any]) -> None:
+    """Write tool invocation input/output to JSONL for diagnostics."""
+    try:
+        _AUDIT_LOG.parent.mkdir(parents=True, exist_ok=True)
+        record = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "tool": tool_name,
+            "args": {k: v for k, v in args.items() if k != "exercise_sets"},
+            "success": result.get("success"),
+            "unused_params": result.get("unused_params", []),
+        }
+        with open(_AUDIT_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+    except Exception:
+        pass
+
+
+def _execute_tool(db_session_factory, tool_name: str, tool_args: dict[str, Any]) -> dict[str, Any]:
+    """Execute a single tool call and return the result. Opens fresh DB session."""
+    from .db import SessionLocal as _SL
+
+    session = _SL()
+    try:
+        if tool_name == "get_dashboard_data":
+            latest_nutrition = session.scalar(select(NutritionLogEntity).order_by(desc(NutritionLogEntity.log_date), desc(NutritionLogEntity.id)))
+            latest_readiness = session.scalar(select(ReadinessLogEntity).order_by(desc(ReadinessLogEntity.log_date), desc(ReadinessLogEntity.id)))
+            latest_body_metric = session.scalar(select(BodyMetricEntity).order_by(desc(BodyMetricEntity.log_date), desc(BodyMetricEntity.id)))
+            goal_config = _load_goal_config(session)
+            goal_progress = _build_goal_progress(session, goal_config)
+            height_cm_val = get_setting(session, "height_cm")
+            return {
+                "success": True,
+                "nutrition": {
+                    "latest_calories": latest_nutrition.calories_kcal if latest_nutrition else None,
+                    "latest_protein_g": latest_nutrition.protein_g if latest_nutrition else None,
+                    "latest_weight_kg": latest_nutrition.body_weight_kg if latest_nutrition else None,
+                },
+                "recovery": {
+                    "latest_sleep_hours": latest_readiness.sleep_hours if latest_readiness else None,
+                    "latest_fatigue": latest_readiness.fatigue_score if latest_readiness else None,
+                },
+                "goal": {
+                    "type": goal_progress.goal_type,
+                    "current_weight": goal_progress.current_weight_kg,
+                    "target_weight": goal_progress.target_weight_kg,
+                    "days_remaining": goal_progress.days_remaining,
+                    "progress": goal_progress.progress_label,
+                },
+                "body_metric": {
+                    "latest_weight_kg": latest_body_metric.body_weight_kg if latest_body_metric else None,
+                    "latest_body_fat_pct": latest_body_metric.body_fat_rate_pct if latest_body_metric else None,
+                    "latest_muscle_kg": latest_body_metric.muscle_weight_kg if latest_body_metric else None,
+                    "latest_waist_cm": latest_body_metric.waist_cm if latest_body_metric else None,
+                },
+                "profile": {
+                    "height_cm": float(height_cm_val) if height_cm_val else None,
+                },
+            }
+
+        elif tool_name == "render_form":
+            return {"success": True, "rendered": "form", "form_schema": tool_args}
+
+        elif tool_name == "render_chart":
+            return {"success": True, "rendered": "chart", "chart_config": tool_args}
+
+        elif tool_name == "get_available_actions":
+            import json as _json2
+            return {"success": True, "actions": ActionRegistry.list_actions()}
+
+        else:
+            return {"success": False, "error": f"Unknown tool: {tool_name}"}
+
+    except Exception as exc:
+        session.rollback()
+        return {"success": False, "error": str(exc)}
+    finally:
+        session.close()
+
+
+# Keywords that indicate the user wants to record/modify data (→ force render_form)
+_RECORD_INTENT_PATTERNS = [
+    "记录一下", "更新一下", "修改一下", "调整一下",
+    "帮我记", "记录", "更新", "修改", "设置", "输入", "添加", "保存",
+    "改成", "改为", "调整", "设为", "记一下",
+    "录入", "登记", "填写", "上报", "写一下", "改一下",
+]
+
+# Query keywords that override record intent (e.g. "查看记录" is a query, not record)
+_QUERY_OVERRIDE_PATTERNS = [
+    "查看", "显示", "看.", "看？", "看看", "趋势", "图表",
+    "多少", "怎么样", "如何", "为什么", "是什么",
+]
+
+
+def _detect_intent(user_message: str) -> str:
+    """Classify user intent for tool_choice strategy."""
+    for pat in _QUERY_OVERRIDE_PATTERNS:
+        if pat in user_message:
+            return "general"
+    for pat in _RECORD_INTENT_PATTERNS:
+        if pat in user_message:
+            return "record_data"
+    return "general"
+
+
 @app.post("/api/v1/chat")
 async def chat(payload: ChatRequest, db: Session = Depends(get_db)):
-    """Main chat endpoint with RAG + profile-enhanced streaming response."""
+    """Main chat endpoint with tool-calling, thinking mode, and vision support."""
     import json as _json
 
     spent = get_month_spent_rmb(db)
-    # Determine route tier
     last_msg = payload.messages[-1].content if payload.messages else ""
-    needs_complex = any(k in last_msg.lower() for k in ["plateau", "injury", "deload", "complex", "conflict"])
-    route_tier, route_reason = pick_tier(
-        config=cost_config,
-        spent_rmb=spent,
-        preference="auto",
-        needs_complex_reasoning=needs_complex,
+
+    # Intent detection → drives tool_choice strategy
+    user_intent = _detect_intent(last_msg)
+
+    # Determine model: user override > cost router > env default
+    # When thinking_mode is off (fast mode), force a non-reasoning model
+    thinking_enabled = payload.thinking_mode
+    if payload.model:
+        model = payload.model
+        route_tier = "l1"
+        route_reason = "user selected model"
+        if not thinking_enabled and "reasoner" in model.lower():
+            model = cost_config.model_l1
+            route_reason = "fast mode override (reasoner → flash)"
+    else:
+        needs_complex = any(k in last_msg.lower() for k in ["plateau", "injury", "deload", "complex", "conflict"])
+        route_tier, route_reason = pick_tier(
+            config=cost_config, spent_rmb=spent, preference="auto", needs_complex_reasoning=needs_complex,
+        )
+        model = cost_config.model_l2 if route_tier == "l2" else cost_config.model_l1
+        if not thinking_enabled and route_tier == "l2":
+            model = cost_config.model_l1
+            route_reason = "fast mode override (L2 → L1)"
+
+    # Build system prompt
+    system_prompt = (
+        "<role>\n"
+        "You are a professional strength and conditioning coach AI. You help users track\n"
+        "fitness data and get personalized advice.\n\n"
+        "IMPORTANT: You CANNOT directly modify the user's data. All data recording must\n"
+        "go through forms that the user fills in and confirms. This ensures data integrity.\n\n"
+        "Your coaching personality:\n"
+        "- Data-driven but warm — celebrate progress, address setbacks constructively\n"
+        "- Concise — prefer one clear recommendation over a wall of text\n"
+        "- Honest about uncertainty — if the user's data is incomplete, acknowledge it\n"
+        "  rather than pretending precision\n\n"
+        "HARD BOUNDARIES:\n"
+        "- NEVER prescribe aggressive load increases when recovery metrics are poor\n"
+        "- NEVER recommend training through pain that sounds like an injury\n"
+        "- NEVER invent, guess, or fabricate numerical data\n"
+        "- NEVER suggest supplements, medications, or medical diagnoses\n"
+        "</role>\n\n"
+        "<decision_flow>\n"
+        "When a user sends a message, follow this decision tree:\n\n"
+        "STEP 1 — CLASSIFY THE USER'S INTENT\n"
+        '  ├─ "I want to record data" (nutrition, workout, recovery, body metrics, goal)\n'
+        "  │   → Use render_form to generate an interactive form. NEVER write data directly.\n"
+        "  │     The user will fill in the form and submit it themselves.\n"
+        '  ├─ "I want to see my data visualized" (charts, trends, comparisons)\n'
+        "  │   → FIRST call get_dashboard_data, then use render_chart with real data.\n"
+        '  ├─ "I need advice or knowledge" (training questions, nutrition guidance)\n'
+        "  │   → FIRST call get_dashboard_data to fetch the user's real data.\n"
+        "  │     Then analyze the data and give personalized advice.\n"
+        '  └─ "Casual chat or greeting"\n'
+        "      → Respond directly.\n\n"
+        "CRITICAL: You have 4 tools:\n"
+        "  1. get_dashboard_data — read current stats (MANDATORY before any advice)\n"
+        "  2. get_available_actions — get available data-entry actions with field schemas\n"
+        "  3. render_form — generate a form for the user to fill in (action must be from get_available_actions)\n"
+        "  4. render_chart — visualize data with charts\n"
+        "There are NO direct write tools. All data entry goes through render_form.\n"
+        "</decision_flow>\n\n"
+        "<tool_usage_rules>\n"
+        "get_dashboard_data — fetch current stats (MANDATORY for any data-dependent response)\n"
+        "  WHEN: user asked ANY question that needs current data to answer well.\n"
+        "  RULE: If you don't know the answer without checking user data, you MUST\n"
+        "        call this tool FIRST. NEVER say \"让我看看你的数据\" without calling it.\n\n"
+        "get_available_actions — discover available data-entry actions and their field schemas\n"
+        "  WHEN: before calling render_form to know exact field names, types, and constraints.\n"
+        "  RULE: call this FIRST if you do not know the exact fields for the data type.\n"
+        "        Each action schema lists the valid field keys and their constraints.\n\n"
+        "render_form — show an interactive data entry form (THE ONLY WAY to record data)\n"
+        "  WHEN: user wants to record ANY data (nutrition, workout, recovery, body metrics,\n"
+        "        goal, profile). Whether they provided numbers or not — ALWAYS use render_form.\n"
+        "  HOW:  set action to one of the names from get_available_actions.\n"
+        "        Include fields relevant to what the user wants to record. Use Chinese labels.\n"
+        "        Set reasonable min/max for numeric fields. Include the unit in the label or\n"
+        "        as a separate unit field.\n"
+        "        CRITICAL: When the user provides specific values (e.g. '身高191cm' or '体重75kg'),\n"
+        "        set default_value on the field with that value (NOT placeholder!). This pre-fills the form\n"
+        "        so the user only needs to confirm, not re-enter data.\n"
+        "        Field keys MUST match the action schema property names. Call get_available_actions if you are unsure about field names.\n"
+        "  WHY:  forms let the user review and confirm before data is saved. This is the\n"
+        "        only reliable path to the database.\n\n"
+        "render_chart — visualize data with a chart\n"
+        "  WHEN: user asked to see trends, comparisons, or visual summaries.\n"
+        "  HOW:  FIRST call get_dashboard_data, THEN use render_chart with the real data.\n"
+        "</tool_usage_rules>\n\n"
+        "<examples>\n"
+        "<example>\n"
+        'User: "我今天早上体重75kg，帮我记录一下"\n'
+        "Assistant calls: get_dashboard_data() then render_form({\n"
+        '  title: \"记录体重数据\",\n'
+        '  action: \"body_metric.upsert\",\n'
+        '  fields: [{key: \"body_weight_kg\", label: \"体重\", type: \"number\", unit: \"kg\", required: true, min: 30, max: 300}]\n'
+        "})\n"
+        "Assistant responds:\n"
+        "  好的！我帮你准备了体重记录表单，当前值已预填75kg。请确认后提交，数据会自动保存。\n"
+        "</example>\n\n"
+        "<example>\n"
+        'User: "帮我记录饮食"\n'
+        "Assistant calls: render_form({\n"
+        '  title: \"记录今日饮食\", action: \"nutrition.create\",\n'
+        '  fields: [{key: \"calories_kcal\", label: \"总热量\", type: \"integer\", unit: \"kcal\"}, ...]\n'
+        "})\n"
+        "Assistant responds:\n"
+        "  请填写下面的表单来记录今天的饮食数据，填完后提交即可保存。\n"
+        "</example>\n\n"
+        "<example>\n"
+        'User: "我最近训练怎么样？"\n'
+        "Assistant calls: get_dashboard_data()\n"
+        "Assistant responds with personalized analysis based on the real data returned.\n"
+        "</example>\n"
+        "</examples>\n\n"
+        "<constraints>\n"
+        "- Always respond in Chinese (except tool names, JSON keys, and code blocks)\n"
+        "- Keep responses concise: 2-4 sentences for forms, 3-5 for advice\n"
+        "- NEVER use batch_summary blocks — those were for direct write tools which no longer exist\n"
+        "- If you called render_chart, output a :::chart block in the response\n"
+        "- When user provides numbers, include them as default values in the form fields\n"
+        "</constraints>"
     )
-
-    model = cost_config.model_l2 if route_tier == "l2" else cost_config.model_l1
-
-    # Build enhanced system prompt with RAG + profile
-    system_prompt = "You are a professional strength and conditioning coach. "
 
     rag_sources = []
     if payload.enable_rag and route_tier != "l0":
@@ -1425,12 +2014,7 @@ async def chat(payload: ChatRequest, db: Session = Depends(get_db)):
             rag_sources = rag_results
             rag_context = _rag_pipeline.build_rag_context(last_msg, max_chars=2000, top_k=3)
             if rag_context:
-                system_prompt += (
-                    "\n\n## Relevant fitness knowledge\n"
-                    f"{rag_context}\n\n"
-                    "Use this knowledge to inform your answer. "
-                    "Cite sources when applicable."
-                )
+                system_prompt += f"\n\n## Relevant fitness knowledge\n{rag_context}\n\nUse this knowledge to inform your answer."
         except Exception:
             pass
 
@@ -1439,79 +2023,39 @@ async def chat(payload: ChatRequest, db: Session = Depends(get_db)):
             profile = aggregate_user_profile(db)
             profile_ctx = profile_to_prompt_context(profile)
             if profile_ctx:
-                system_prompt += (
-                    "\n\n## User profile and recent data\n"
-                    f"{profile_ctx}\n\n"
-                    "Use this data to personalize your advice."
-                )
+                system_prompt += f"\n\n## User profile and recent data\n{profile_ctx}\n\nUse this data to personalize your advice."
         except Exception:
             pass
 
-    system_prompt += (
-        "\nKeep responses concise and actionable. "
-        "When suggesting load changes, explain the reasoning. "
-        "When recovery metrics are poor, prioritize rest and safety."
-    )
+    # Inject available actions when the user wants to record data
+    if user_intent == "record_data":
+        import json as _json3
+        actions_info = _json3.dumps(ActionRegistry.list_actions(), ensure_ascii=False)
+        system_prompt += f"\n\n## Available data-entry actions\n{actions_info}\n\nWhen calling render_form, set action to one of the names listed above. Use the exact field keys from the action's schema."
 
-    # Format messages for API
-    api_messages = [{"role": "system", "content": system_prompt}]
+    # Build API messages — support images for vision
+    api_messages: list[dict[str, Any]] = [{"role": "system", "content": system_prompt}]
     for msg in payload.messages:
-        api_messages.append({"role": msg.role, "content": msg.content})
+        if msg.role == "user" and payload.images and payload.images[0]:
+            # Multi-modal message with images
+            content_parts: list[dict[str, Any]] = [{"type": "text", "text": msg.content}]
+            for img_b64 in payload.images[:3]:  # max 3 images
+                if img_b64.startswith("data:"):
+                    content_parts.append({"type": "image_url", "image_url": {"url": img_b64}})
+                else:
+                    content_parts.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}})
+            api_messages.append({"role": "user", "content": content_parts})
+        else:
+            api_messages.append({"role": msg.role, "content": msg.content})
 
-    if not deepseek_client.is_configured():
-        # Fallback: rule engine response
-        def fallback_generator():
-            workouts = db.scalars(
-                select(WorkoutSessionEntity)
-                .options(selectinload(WorkoutSessionEntity.exercise_sets))
-                .order_by(desc(WorkoutSessionEntity.training_date))
-                .limit(3)
-            ).all()
-            readiness = db.scalars(
-                select(ReadinessLogEntity)
-                .order_by(desc(ReadinessLogEntity.log_date))
-                .limit(7)
-            ).all()
-            suggestion = suggest_today_plan(
-                workouts=list(reversed(workouts)),
-                readiness_logs=list(reversed(readiness)),
-                goal=str(get_setting(db, "current_goal", "strength")),
-            )
-            yield {
-                "event": "token",
-                "data": _json.dumps({
-                    "type": "token",
-                    "content": f"[Rule Engine] {suggestion['action']}: {suggestion['reason']}. "
-                               f"Set DEEPSEEK_API_KEY for AI-powered responses.",
-                }, ensure_ascii=False),
-            }
-            yield {
-                "event": "meta",
-                "data": _json.dumps({
-                    "type": "meta",
-                    "rag_sources": [],
-                    "route_tier": "l0",
-                    "estimated_cost_rmb": 0.0,
-                    "needs_profile_extraction": False,
-                }, ensure_ascii=False),
-            }
-
-        return EventSourceResponse(fallback_generator())
-
-    # Save user message to DB
-    user_msg_entity = ChatMessageEntity(
-        user_id="default",
-        role="user",
-        content=last_msg,
-    )
+    # Save user message
+    user_msg_entity = ChatMessageEntity(user_id="default", role="user", content=last_msg)
     db.add(user_msg_entity)
     db.flush()
 
-    # Estimate token usage for logging
-    approx_input_tokens = sum(len(m["content"]) // 4 for m in api_messages)
+    approx_input_tokens = sum(len(str(m.get("content", ""))) // 4 for m in api_messages)
     estimated_cost = estimate_cost_rmb(cost_config, route_tier, approx_input_tokens, cost_config.max_output_tokens_per_call)
 
-    # Build thinking process from RAG context
     thinking_parts: list[str] = []
     if rag_sources:
         thinking_parts.append(f"检索到 {len(rag_sources)} 篇相关知识:")
@@ -1519,41 +2063,148 @@ async def chat(payload: ChatRequest, db: Session = Depends(get_db)):
             thinking_parts.append(f"  {i}. [{r['kb_name']}] {r['title']} (相关度: {r['score']})")
     thinking_process = "\n".join(thinking_parts) if thinking_parts else ""
 
+    if not deepseek_client.is_configured():
+        def _fallback():
+            suggestion = suggest_today_plan(
+                workouts=[],
+                readiness_logs=[],
+                goal=str(get_setting(db, "current_goal", "strength")),
+            )
+            yield {"event": "token", "data": _json.dumps({"type": "token", "content": f"[Rule Engine] {suggestion['action']}: {suggestion['reason']}. Set DEEPSEEK_API_KEY for AI-powered responses."}, ensure_ascii=False)}
+            yield {"event": "meta", "data": _json.dumps({"type": "meta", "rag_sources": [], "route_tier": "l0", "estimated_cost_rmb": 0.0, "needs_profile_extraction": False}, ensure_ascii=False)}
+        return EventSourceResponse(_fallback())
+
     def stream_generator():
         full_response = ""
         total_tokens = 0
         thinking_start = time.time()
         first_token_time: float | None = None
         thinking_time_ms = 0
+        tool_calls_made: list[dict[str, Any]] = []
+        accumulated_content = ""
+
+        # Determine tool_choice based on user intent
+        if user_intent == "record_data":
+            tool_choice: str | dict[str, Any] = {"type": "function", "function": {"name": "render_form"}}
+        else:
+            tool_choice = "auto"
+
+        # Debug: trace Round 1/2 flow
+        debug_log = Path(__file__).resolve().parents[2] / "log" / "_debug_stream.log"
+        def _debug(msg: str) -> None:
+            try:
+                with open(debug_log, "a", encoding="utf-8") as f:
+                    f.write(f"[{datetime.utcnow().isoformat()}] {msg}\n")
+            except Exception:
+                pass
+        _debug(f"=== New stream start, model={model}, thinking_enabled={thinking_enabled}, intent={user_intent}, tool_choice={tool_choice if isinstance(tool_choice, str) else 'forced:render_form'} ===")
 
         try:
+            # --- Round 1: stream with tools ---
+            tool_calls_buffer: dict[int, dict[str, Any]] = {}
+            current_finish_reason = ""
+
             for chunk in deepseek_client.chat_completion_stream(
                 model=model,
                 messages=api_messages,
                 max_tokens=cost_config.max_output_tokens_per_call,
+                tools=AI_TOOLS,
+                tool_choice=tool_choice,
+                thinking_enabled=thinking_enabled,
             ):
-                if chunk["type"] == "token":
+                if chunk["type"] == "thinking":
+                    if thinking_enabled:
+                        yield {"event": "thinking", "data": _json.dumps({"type": "thinking", "content": chunk["content"]}, ensure_ascii=False)}
+
+                elif chunk["type"] == "token":
                     if first_token_time is None:
                         first_token_time = time.time()
                         thinking_time_ms = int((first_token_time - thinking_start) * 1000)
                     full_response += chunk["content"]
-                    yield {
-                        "event": "token",
-                        "data": _json.dumps({
-                            "type": "token",
-                            "content": chunk["content"],
-                        }, ensure_ascii=False),
-                    }
+                    yield {"event": "token", "data": _json.dumps({"type": "token", "content": chunk["content"]}, ensure_ascii=False)}
+
+                elif chunk["type"] == "tool_call":
+                    tool_calls_made.append({"id": chunk["id"], "name": chunk["name"], "arguments": chunk["arguments"]})
+                    yield {"event": "tool_call", "data": _json.dumps({"type": "tool_call", "tool_name": chunk["name"], "arguments": chunk["arguments"], "id": chunk["id"]}, ensure_ascii=False)}
+
                 elif chunk["type"] == "meta":
                     total_tokens = chunk.get("usage", {}).get("total_tokens", 0)
+
+            accumulated_content = full_response
+
+            _debug(f"Round 1 done. full_response_len={len(full_response)}, tool_calls_made={len(tool_calls_made)}, finish_reason={current_finish_reason}")
+
+            # --- Round 2: if model called tools, execute and continue ---
+            if tool_calls_made:
+                # Execute tools
+                tool_results: list[dict[str, Any]] = []
+                for tc in tool_calls_made:
+                    try:
+                        args = _json.loads(tc["arguments"]) if isinstance(tc["arguments"], str) else tc["arguments"]
+                    except (_json.JSONDecodeError, TypeError):
+                        args = {}
+                    result = _execute_tool(db, tc["name"], args)
+                    _write_tool_audit(tc["name"], args, result)
+                    tool_results.append({"tool_call_id": tc["id"], "role": "tool", "content": _json.dumps(result, ensure_ascii=False)})
+                    yield {"event": "tool_result", "data": _json.dumps({"type": "tool_result", "tool_name": tc["name"], "result": result, "id": tc["id"]}, ensure_ascii=False)}
+
+                # Add assistant tool_calls message and tool results to conversation
+                api_messages.append({
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [{"id": tc["id"], "type": "function", "function": {"name": tc["name"], "arguments": tc["arguments"]}} for tc in tool_calls_made],
+                })
+                for tr in tool_results:
+                    api_messages.append(tr)
+
+                # Round 2: stream the final response
+                _debug(f"Round 2 starting, api_messages count={len(api_messages)}, last_role={api_messages[-1]['role'] if api_messages else 'N/A'}")
+                round2_response = ""
+                for chunk in deepseek_client.chat_completion_stream(
+                    model=model,
+                    messages=api_messages,
+                    max_tokens=cost_config.max_output_tokens_per_call,
+                    tools=AI_TOOLS,
+                    tool_choice="auto",
+                    thinking_enabled=thinking_enabled,
+                ):
+                    if chunk["type"] == "thinking":
+                        if thinking_enabled:
+                            yield {"event": "thinking", "data": _json.dumps({"type": "thinking", "content": chunk["content"]}, ensure_ascii=False)}
+
+                    elif chunk["type"] == "token":
+                        if first_token_time is None:
+                            first_token_time = time.time()
+                            thinking_time_ms = int((first_token_time - thinking_start) * 1000)
+                        round2_response += chunk["content"]
+                        full_response += chunk["content"]
+                        yield {"event": "token", "data": _json.dumps({"type": "token", "content": chunk["content"]}, ensure_ascii=False)}
+
+                    elif chunk["type"] == "tool_call":
+                        # Handle cascaded tool calls
+                        tool_calls_made.append({"id": chunk["id"], "name": chunk["name"], "arguments": chunk["arguments"]})
+                        try:
+                            args2 = _json.loads(chunk["arguments"]) if isinstance(chunk["arguments"], str) else chunk["arguments"]
+                        except (_json.JSONDecodeError, TypeError):
+                            args2 = {}
+                        result2 = _execute_tool(db, chunk["name"], args2)
+                        _write_tool_audit(chunk["name"], args2, result2)
+                        yield {"event": "tool_result", "data": _json.dumps({"type": "tool_result", "tool_name": chunk["name"], "result": result2, "id": chunk["id"]}, ensure_ascii=False)}
+
+                    elif chunk["type"] == "meta":
+                        usage2 = chunk.get("usage", {})
+                        if usage2.get("total_tokens"):
+                            total_tokens += usage2["total_tokens"]
+
+                accumulated_content = round2_response if round2_response else full_response
+
+                _debug(f"Round 2 done. round2_response_len={len(round2_response)}, accumulated_len={len(accumulated_content)}")
+            else:
+                _debug("No tool calls made, skipping Round 2")
+
         except Exception as e:
-            yield {
-                "event": "error",
-                "data": _json.dumps({
-                    "type": "error",
-                    "message": str(e),
-                }, ensure_ascii=False),
-            }
+            _debug(f"EXCEPTION in stream_generator: {type(e).__name__}: {e}")
+            yield {"event": "error", "data": _json.dumps({"type": "error", "message": str(e)}, ensure_ascii=False)}
             return
 
         if first_token_time is None:
@@ -1561,23 +2212,16 @@ async def chat(payload: ChatRequest, db: Session = Depends(get_db)):
         if total_tokens == 0:
             total_tokens = approx_input_tokens + len(full_response) // 4
 
-        # Save assistant message to DB (use fresh session — outer session may be closed
-        # by the time EventSourceResponse consumes this generator)
+        # Save to DB
         from .db import SessionLocal as _SessionLocal
         save_session = _SessionLocal()
         try:
             assistant_msg = ChatMessageEntity(
-                user_id="default",
-                role="assistant",
-                content=full_response,
-                tokens_used=total_tokens,
-                thinking_time_ms=thinking_time_ms,
+                user_id="default", role="assistant",
+                content=accumulated_content,
+                tokens_used=total_tokens, thinking_time_ms=thinking_time_ms,
                 thinking_process=thinking_process,
-                rag_sources=[
-                    {"kb_name": r["kb_name"], "title": r["title"],
-                     "snippet": r["snippet"][:200], "score": r["score"]}
-                    for r in rag_sources
-                ] if rag_sources else None,
+                rag_sources=[{"kb_name": r["kb_name"], "title": r["title"], "snippet": r["snippet"][:200], "score": r["score"]} for r in rag_sources] if rag_sources else None,
             )
             save_session.add(assistant_msg)
             save_session.commit()
@@ -1586,16 +2230,11 @@ async def chat(payload: ChatRequest, db: Session = Depends(get_db)):
         finally:
             save_session.close()
 
-        # Send metadata with timing and token info
         yield {
             "event": "meta",
             "data": _json.dumps({
                 "type": "meta",
-                "rag_sources": [
-                    {"kb_name": r["kb_name"], "title": r["title"],
-                     "snippet": r["snippet"][:200], "score": r["score"]}
-                    for r in rag_sources
-                ],
+                "rag_sources": [{"kb_name": r["kb_name"], "title": r["title"], "snippet": r["snippet"][:200], "score": r["score"]} for r in rag_sources],
                 "route_tier": route_tier,
                 "estimated_cost_rmb": estimated_cost,
                 "tokens_used": total_tokens,
@@ -1605,58 +2244,75 @@ async def chat(payload: ChatRequest, db: Session = Depends(get_db)):
             }, ensure_ascii=False),
         }
 
-        # Log usage and extract profile changes (use save_session)
         save_session.add(LlmUsageLogEntity(
-            tier=route_tier,
-            model=model,
-            route_reason=route_reason,
-            input_tokens=approx_input_tokens,
-            output_tokens=len(full_response) // 4,
-            cost_rmb=estimated_cost,
-            created_at=datetime.utcnow(),
+            tier=route_tier, model=model, route_reason=route_reason,
+            input_tokens=approx_input_tokens, output_tokens=len(full_response) // 4,
+            cost_rmb=estimated_cost, created_at=datetime.utcnow(),
         ))
         save_session.commit()
 
-        # Extract profile changes
-        conversation = "\n".join(
-            f"{m['role']}: {m['content']}" for m in api_messages[1:]
-        ) + f"\nassistant: {full_response}"
-
-        changes = extract_profile_changes(conversation, deepseek_client)
-        for change in changes:
-            field_path = str(change.get("field_path", ""))
-            new_value = change.get("new_value")
-            reason = str(change.get("reason", "Extracted from conversation"))
-            category = str(change.get("category", "profile"))
-            if not field_path:
-                continue
-
-            # Use a fresh session for reading settings and saving proposals
-            proposal_session = _SessionLocal()
+        # Parse batch_summary blocks from AI response and create change proposals
+        # The AI outputs :::batch_summary{...}::: blocks when it executes data-writing tools.
+        # These serve as inline confirmation cards — no separate extraction step needed.
+        import re as _re
+        batch_matches = _re.findall(r":::batch_summary\s*(\{[\s\S]*?\})\s*:::", full_response)
+        for batch_json in batch_matches:
             try:
-                if category == "profile":
-                    from .db import get_setting as _get_setting
-                    old_value_val = _get_setting(proposal_session, field_path)
-                else:
-                    old_value_val = None
-
-                proposal = ChangeProposalEntity(
-                    field_path=field_path,
-                    old_value=old_value_val,
-                    new_value=new_value,
-                    reason=reason,
-                    initiator="ai",
-                    status="pending",
-                    change_category=category,
-                )
-                proposal_session.add(proposal)
-                proposal_session.commit()
+                batch = _json.loads(batch_json)
+                for change in batch.get("changes", []):
+                    if not change.get("success"):
+                        continue
+                    field_label = str(change.get("field_label", ""))
+                    if not field_label:
+                        continue
+                    proposal_session = _SessionLocal()
+                    try:
+                        proposal = ChangeProposalEntity(
+                            field_path=field_label,
+                            old_value=str(change.get("before", "—")),
+                            new_value=str(change.get("after", "")),
+                            reason=f"Batch summary: {field_label}",
+                            initiator="ai",
+                            status="approved",
+                            change_category=str(change.get("category", "profile")),
+                        )
+                        proposal_session.add(proposal)
+                        proposal_session.commit()
+                    except Exception:
+                        proposal_session.rollback()
+                    finally:
+                        proposal_session.close()
             except Exception:
-                proposal_session.rollback()
-            finally:
-                proposal_session.close()
+                pass
 
     return EventSourceResponse(stream_generator())
+
+
+@app.post("/api/v1/chat/upload")
+async def chat_upload_food_image(file: UploadFile = File(...)):
+    """Upload a food image for recognition. Returns dish name + nutrition info."""
+    if not file.content_type or file.content_type not in ALLOWED_IMAGE_MIME:
+        raise HTTPException(status_code=415, detail="Only jpeg/png/webp images are supported")
+
+    raw = await file.read()
+    await file.close()
+
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"File too large (>{MAX_UPLOAD_BYTES} bytes)")
+
+    ext = ALLOWED_IMAGE_MIME[file.content_type]
+    filename = f"{uuid.uuid4().hex}{ext}"
+    target_path = UPLOAD_DIR / filename
+    target_path.write_bytes(raw)
+
+    # Run food recognition pipeline
+    result = _food_client.image_to_nutrition(raw)
+
+    return {
+        "image_url": f"/uploads/{filename}",
+        "filename": filename,
+        "recognition": result,
+    }
 
 
 @app.get("/api/v1/dashboard", response_model=DashboardResponse)
@@ -1713,6 +2369,7 @@ def get_dashboard(db: Session = Depends(get_db)):
         "carbs_g": latest_nutrition.carbs_g if latest_nutrition else 0,
         "fat_g": latest_nutrition.fat_g if latest_nutrition else 0,
         "water_liters": latest_nutrition.water_liters if latest_nutrition else 0,
+        "body_weight_kg": None,  # filled below from body_metrics
         "log_date": str(latest_nutrition.log_date) if latest_nutrition else "",
     }
 
@@ -1721,46 +2378,44 @@ def get_dashboard(db: Session = Depends(get_db)):
     goal_progress_data = _build_goal_progress(db, config)
     goal_progress = {
         "goal_type": goal_progress_data.goal_type,
+        "start_date": str(goal_progress_data.start_date) if goal_progress_data.start_date else None,
+        "target_date": str(goal_progress_data.target_date) if goal_progress_data.target_date else None,
         "current_weight_kg": goal_progress_data.current_weight_kg,
         "target_weight_kg": goal_progress_data.target_weight_kg,
         "weight_gap_kg": goal_progress_data.weight_gap_kg,
         "days_remaining": goal_progress_data.days_remaining,
         "progress_label": goal_progress_data.progress_label,
         "summary": goal_progress_data.summary,
+        "actual_weekly_weight_change_kg": goal_progress_data.actual_weekly_weight_change_kg,
+        "required_weekly_weight_change_kg": goal_progress_data.required_weekly_weight_change_kg,
+        "current_muscle_kg": goal_progress_data.current_muscle_kg,
+        "target_muscle_kg": goal_progress_data.target_muscle_kg,
+        "muscle_gap_kg": goal_progress_data.muscle_gap_kg,
     }
 
-    # Weight trend (last 7 days) — merge from nutrition logs + body metrics
+    # Weight trend (last 7 days) — from body_metrics, latest per date
     seven_days_ago = today.fromordinal(today.toordinal() - 6)
-
-    nutrition_weight_rows = db.scalars(
-        select(NutritionLogEntity)
-        .where(
-            NutritionLogEntity.body_weight_kg.is_not(None),
-            NutritionLogEntity.log_date >= seven_days_ago,
-        )
-        .order_by(NutritionLogEntity.log_date.asc())
-    ).all()
-
-    body_metric_weight_rows = db.scalars(
+    weight_rows = db.scalars(
         select(BodyMetricEntity)
         .where(
             BodyMetricEntity.body_weight_kg.is_not(None),
             BodyMetricEntity.log_date >= seven_days_ago,
         )
-        .order_by(BodyMetricEntity.log_date.asc())
+        .order_by(BodyMetricEntity.log_date.asc(), BodyMetricEntity.id.asc())
     ).all()
 
-    # Merge by date; body_metric takes precedence for same date (more deliberate measurement)
     weight_by_date: dict[str, float] = {}
-    for r in nutrition_weight_rows:
-        weight_by_date[str(r.log_date)] = float(r.body_weight_kg)
-    for r in body_metric_weight_rows:
+    for r in weight_rows:
         weight_by_date[str(r.log_date)] = float(r.body_weight_kg)
 
     weight_trend = [
         {"log_date": d, "body_weight_kg": w}
         for d, w in sorted(weight_by_date.items())
     ]
+
+    # Fill nutrition.body_weight_kg from weight_trend
+    if weight_trend:
+        nutrition["body_weight_kg"] = weight_trend[-1]["body_weight_kg"]
 
     # Body metrics — merge recent records so a partial save doesn't hide complete InBody data
     thirty_days_ago = today.fromordinal(today.toordinal() - 29)

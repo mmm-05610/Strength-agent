@@ -6,77 +6,27 @@ import type {
 } from "../../../api/client";
 import {
   fetchWorkouts,
-  createWorkout,
+  fetchPlanState,
   updateWorkout,
   deleteWorkout,
 } from "../../../api/client";
+import { useActions } from "../../../hooks/useActions";
+import { useHistoryData } from "../../../hooks/useHistoryData";
+import { getTodayStr } from "../shared/datetime";
 import { HistoryList, type HistoryItem } from "../shared/HistoryList";
+import { Plus, X } from "lucide-react";
 import {
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  X,
-  Flame,
-  Dumbbell,
-} from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+  TrainingCalendar,
+  WeeklyVolumeChart,
+  WorkoutDetail,
+  TrainingSplitTable,
+} from "../components/training";
 
 interface Props {
   data: DashboardData;
   onRefresh: () => void;
   expandFormTrigger?: number;
 }
-
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
-
-function getTodayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function getMonthDays(year: number, month: number) {
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysInPrevMonth = new Date(year, month, 0).getDate();
-  const cells: { day: number; month: "prev" | "current" | "next" }[] = [];
-
-  for (let i = firstDay - 1; i >= 0; i--) {
-    cells.push({ day: daysInPrevMonth - i, month: "prev" });
-  }
-  for (let i = 1; i <= daysInMonth; i++) {
-    cells.push({ day: i, month: "current" });
-  }
-  const remaining = 7 - (cells.length % 7);
-  if (remaining < 7) {
-    for (let i = 1; i <= remaining; i++) {
-      cells.push({ day: i, month: "next" });
-    }
-  }
-  return cells;
-}
-
-function formatDate(year: number, month: number, day: number) {
-  const m = String(month + 1).padStart(2, "0");
-  const d = String(day).padStart(2, "0");
-  return `${year}-${m}-${d}`;
-}
-
-const FOCUS_TAG: Record<string, { label: string; color: string }> = {
-  upper: { label: "上肢", color: "var(--accent)" },
-  lower: { label: "下肢", color: "var(--mint)" },
-  full_body: { label: "全身", color: "var(--lavender)" },
-  push: { label: "推", color: "var(--warning)" },
-  pull: { label: "拉", color: "var(--success)" },
-  legs: { label: "腿", color: "var(--mint)" },
-  rest: { label: "休", color: "var(--text-muted)" },
-};
 
 function est1RM(weight: number, reps: number) {
   if (reps <= 0) return 0;
@@ -112,62 +62,63 @@ const EMPTY_EXERCISE: ExerciseSet = {
   rpe: null,
 };
 
-function StreakCounter({ workouts }: { workouts: WorkoutSession[] }) {
-  const sorted = [...workouts]
-    .map((w) => w.training_date)
-    .sort()
-    .reverse();
-  let streak = 0;
-  const today = new Date();
-  const check = new Date(today);
-
-  for (let i = 0; i < 365; i++) {
-    const ds = formatDate(
-      check.getFullYear(),
-      check.getMonth(),
-      check.getDate(),
-    );
-    if (sorted.includes(ds)) {
-      streak++;
-      check.setDate(check.getDate() - 1);
-    } else {
-      if (i === 0) {
-        // Today might not be a training day, check if this week has training
-        check.setDate(check.getDate() - 1);
-        continue;
-      }
-      break;
-    }
-  }
-
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <Flame
-        size={16}
-        color={streak > 0 ? "var(--warning)" : "var(--text-muted)"}
-      />
-      <span
-        style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}
-      >
-        {streak > 0 ? `连续 ${streak} 周训练` : "本周尚未训练"}
-      </span>
-    </div>
-  );
-}
-
 export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
+  const { dispatch } = useActions();
   const { today_training } = data;
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
+  const { data: workouts, refresh: refreshWorkouts } =
+    useHistoryData<WorkoutSession>(fetchWorkouts, 90);
+  const [trainingPlan, setTrainingPlan] = useState<Record<
+    string,
+    { focus: string; exercises: string[] }
+  > | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (expandFormTrigger && expandFormTrigger > 0) setShowForm(true);
   }, [expandFormTrigger]);
+
+  useEffect(() => {
+    fetchPlanState()
+      .then((ps) => {
+        const dayMap: Record<string, string> = {
+          mon: "周一",
+          tue: "周二",
+          wed: "周三",
+          thu: "周四",
+          fri: "周五",
+          sat: "周六",
+          sun: "周日",
+        };
+        const plan: Record<string, { focus: string; exercises: string[] }> = {};
+        for (const [key, focus] of Object.entries(ps.weekly_plan)) {
+          const label = dayMap[key] ?? key;
+          const dayPlan = ps.cycle_day_plan.find(
+            (dp) =>
+              dayMap[`day${dp.day}`] === label ||
+              dp.day === Object.keys(dayMap).indexOf(key) + 1,
+          );
+          plan[label] = {
+            focus:
+              focus === "upper"
+                ? "上肢"
+                : focus === "lower"
+                  ? "下肢"
+                  : focus === "full_body"
+                    ? "全身"
+                    : focus,
+            exercises: dayPlan?.exercises ?? [],
+          };
+        }
+        setTrainingPlan(plan);
+      })
+      .catch(() => {});
+  }, []);
+
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [formFocus, setFormFocus] = useState(
@@ -178,23 +129,11 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
     { ...EMPTY_EXERCISE },
   ]);
 
-  const loadWorkouts = () => {
-    fetchWorkouts(90)
-      .then(setWorkouts)
-      .catch(() => setWorkouts([]));
-  };
-
-  useEffect(() => {
-    loadWorkouts();
-  }, []);
-
   const workoutMap = new Map<string, WorkoutSession>();
   for (const w of workouts) {
     workoutMap.set(w.training_date, w);
   }
 
-  const todayStr = formatDate(now.getFullYear(), now.getMonth(), now.getDate());
-  const cells = getMonthDays(viewYear, viewMonth);
   const selectedWorkout = selectedDate ? workoutMap.get(selectedDate) : null;
 
   // Month stats
@@ -207,7 +146,6 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
     (sum, w) => sum + w.exercise_sets.reduce((s, e) => s + e.sets, 0),
     0,
   );
-  // Best estimated 1RM across all exercises this month
   const monthBest1RM = Math.max(
     0,
     ...monthWorkouts.flatMap((w) =>
@@ -215,51 +153,6 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
     ),
   );
 
-  // Heatmap intensity: volume = sum(weight × reps × sets) per workout
-  const volumeByDate = new Map<string, number>();
-  for (const w of workouts) {
-    const vol = w.exercise_sets.reduce(
-      (s, e) => s + e.weight_kg * e.reps * e.sets,
-      0,
-    );
-    volumeByDate.set(w.training_date, vol);
-  }
-  const volumes = [...volumeByDate.values()];
-  const maxVol = volumes.length > 0 ? Math.max(...volumes) : 1;
-  const getIntensity = (dateStr: string) => {
-    const vol = volumeByDate.get(dateStr);
-    if (vol == null || vol === 0) return 0;
-    return Math.min(4, Math.ceil((vol / maxVol) * 4));
-  };
-
-  // Weekly volume for bar chart
-  const weeklyVolume = (() => {
-    const weeks: { label: string; volume: number; sets: number }[] = [];
-    const now = new Date();
-    for (let w = 3; w >= 0; w--) {
-      const start = new Date(now);
-      start.setDate(start.getDate() - start.getDay() - w * 7);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 6);
-      let volume = 0;
-      let sets = 0;
-      for (const wo of workouts) {
-        const d = new Date(wo.training_date);
-        if (d >= start && d <= end) {
-          volume += wo.exercise_sets.reduce(
-            (s, e) => s + e.weight_kg * e.reps * e.sets,
-            0,
-          );
-          sets += wo.exercise_sets.reduce((s, e) => s + e.sets, 0);
-        }
-      }
-      const wkLabel = `W${w + 1}`;
-      weeks.push({ label: wkLabel, volume: Math.round(volume), sets });
-    }
-    return weeks;
-  })();
-
-  // Consistency score: training days in last 4 weeks
   const consistencyScore = (() => {
     const now = new Date();
     const cutoff = new Date(now);
@@ -272,21 +165,9 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
     return { days: uniqueDays, pct };
   })();
 
-  const prevMonth = () => {
-    if (viewMonth === 0) {
-      setViewYear(viewYear - 1);
-      setViewMonth(11);
-    } else {
-      setViewMonth(viewMonth - 1);
-    }
-  };
-  const nextMonth = () => {
-    if (viewMonth === 11) {
-      setViewYear(viewYear + 1);
-      setViewMonth(0);
-    } else {
-      setViewMonth(viewMonth + 1);
-    }
+  const handleMonthChange = (y: number, m: number) => {
+    setViewYear(y);
+    setViewMonth(m);
   };
 
   const handleSubmit = async () => {
@@ -310,15 +191,15 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
         await updateWorkout(editingId, payload);
         setEditingId(null);
       } else {
-        await createWorkout({
+        await dispatch("workout.create", {
           training_date: getTodayStr(),
           ...payload,
-        });
+        } as unknown as Record<string, unknown>);
       }
       setShowForm(false);
       setFormExercises([{ ...EMPTY_EXERCISE }]);
       setFormNotes("");
-      loadWorkouts();
+      refreshWorkouts();
       onRefresh();
     } catch {
       // ignore
@@ -346,7 +227,7 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
     setDeleting(id);
     try {
       await deleteWorkout(id);
-      loadWorkouts();
+      refreshWorkouts();
       onRefresh();
     } catch {
       // ignore
@@ -367,25 +248,31 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
         .join(", "),
     }));
 
+  const statusClass = today_training.completed
+    ? "metric-status-done"
+    : today_training.is_training_day
+      ? "metric-status-pending"
+      : "metric-status-rest";
+
+  const consistencyClass =
+    consistencyScore.pct >= 75
+      ? "consistency-good"
+      : consistencyScore.pct >= 50
+        ? "consistency-mid"
+        : "consistency-poor";
+
   return (
     <div>
       <h2 className="dashboard-content-title">训练执行</h2>
 
-      {/* ═══ Section 1: Today Status + Month Stats ═══ */}
+      {/* Metric Cards */}
       <div className="detail-section">
         <div className="detail-metrics-grid">
           <div className="detail-metric-card">
             <div className="detail-metric-label">今日状态</div>
             <div
-              className="detail-metric-value"
-              style={{
-                fontSize: 18,
-                color: today_training.completed
-                  ? "var(--mint)"
-                  : today_training.is_training_day
-                    ? "var(--warning)"
-                    : "var(--text-secondary)",
-              }}
+              className={`detail-metric-value ${statusClass}`}
+              style={{ fontSize: 18 }}
             >
               {today_training.completed
                 ? "已完成"
@@ -426,17 +313,7 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
           </div>
           <div className="detail-metric-card">
             <div className="detail-metric-label">4周一致性</div>
-            <div
-              className="detail-metric-value"
-              style={{
-                color:
-                  consistencyScore.pct >= 75
-                    ? "var(--mint)"
-                    : consistencyScore.pct >= 50
-                      ? "var(--warning)"
-                      : "var(--danger)",
-              }}
-            >
+            <div className={`detail-metric-value ${consistencyClass}`}>
               {consistencyScore.days}/28
               <span className="detail-metric-unit">
                 {" "}
@@ -447,330 +324,25 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
         </div>
       </div>
 
-      {/* ═══ Section 2: Calendar ═══ */}
-      <div className="detail-section">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span className="detail-section-title" style={{ margin: 0 }}>
-              {viewYear}年{viewMonth + 1}月
-            </span>
-            <StreakCounter workouts={workouts} />
-          </div>
-          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-            <button
-              className="calendar-nav-btn"
-              onClick={() => {
-                const now = new Date();
-                setViewYear(now.getFullYear());
-                setViewMonth(now.getMonth());
-              }}
-              title="回到今天"
-            >
-              今天
-            </button>
-            <button className="calendar-nav-btn" onClick={prevMonth}>
-              <ChevronLeft size={14} />
-            </button>
-            <button className="calendar-nav-btn" onClick={nextMonth}>
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        </div>
+      {/* Calendar + Weekly Volume */}
+      <TrainingCalendar
+        workouts={workouts}
+        year={viewYear}
+        month={viewMonth}
+        onMonthChange={handleMonthChange}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+      />
 
-        <div className="calendar-grid">
-          {WEEKDAYS.map((d) => (
-            <div key={d} className="calendar-day-header">
-              {d}
-            </div>
-          ))}
-          {cells.map((c, i) => {
-            const yr =
-              c.month === "prev"
-                ? viewMonth === 0
-                  ? viewYear - 1
-                  : viewYear
-                : c.month === "next"
-                  ? viewMonth === 11
-                    ? viewYear + 1
-                    : viewYear
-                  : viewYear;
-            const mo =
-              c.month === "prev"
-                ? viewMonth === 0
-                  ? 11
-                  : viewMonth - 1
-                : c.month === "next"
-                  ? viewMonth === 11
-                    ? 0
-                    : viewMonth + 1
-                  : viewMonth;
-            const dateStr = formatDate(yr, mo, c.day);
-            const workoutOnDay = workoutMap.get(dateStr);
-            const hasWorkout = !!workoutOnDay;
-            const isToday = dateStr === todayStr;
-            const isSelected = dateStr === selectedDate;
-            const intensity = getIntensity(dateStr);
-            const totalSets = workoutOnDay
-              ? workoutOnDay.exercise_sets.reduce((s, e) => s + e.sets, 0)
-              : 0;
+      <WeeklyVolumeChart workouts={workouts} />
 
-            let cls = "calendar-day";
-            if (c.month !== "current") cls += " other-month";
-            if (isToday) cls += " today";
-            if (isSelected) cls += " selected";
-            if (hasWorkout) cls += ` intensity-${intensity}`;
+      {/* Selected Workout Detail */}
+      {selectedWorkout && <WorkoutDetail workout={selectedWorkout} />}
 
-            const tag = workoutOnDay
-              ? FOCUS_TAG[workoutOnDay.focus_area]
-              : null;
+      {/* Training Split */}
+      <TrainingSplitTable plan={trainingPlan} />
 
-            return (
-              <div
-                key={i}
-                className={cls}
-                onClick={() => {
-                  if (hasWorkout || c.month === "current") {
-                    setSelectedDate(dateStr);
-                  }
-                }}
-              >
-                <span className="calendar-day-num">{c.day}</span>
-                {hasWorkout && (
-                  <div className="calendar-day-content">
-                    <span className="calendar-day-sets">{totalSets}组</span>
-                    {tag && (
-                      <span
-                        className="calendar-day-tag"
-                        style={{ color: tag.color }}
-                      >
-                        {tag.label}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Weekly Volume Chart */}
-        <div className="weekly-volume-chart" style={{ marginTop: 16 }}>
-          <div className="detail-section-title" style={{ marginBottom: 8 }}>
-            周训练容量
-          </div>
-          <ResponsiveContainer width="100%" height={100}>
-            <BarChart
-              data={weeklyVolume}
-              margin={{ top: 4, right: 0, left: 0, bottom: 0 }}
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="var(--border-light)"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 10, fill: "var(--text-muted)" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis hide />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--bg-card)",
-                  border: "1px solid var(--border-light)",
-                  borderRadius: 8,
-                  fontSize: 11,
-                }}
-                formatter={(v, _name, _props) => [
-                  `${((v as number) / 1000).toFixed(1)}k kg`,
-                  "容量",
-                ]}
-                labelFormatter={(label) => {
-                  const item = weeklyVolume.find((w) => w.label === label);
-                  return item ? `${label} · ${item.sets}组` : label;
-                }}
-              />
-              <Bar
-                dataKey="volume"
-                fill="var(--accent)"
-                radius={[4, 4, 0, 0]}
-                opacity={0.75}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* ═══ Section 3: Selected Workout Detail ═══ */}
-      {selectedWorkout && (
-        <div className="detail-section">
-          <div
-            className="card"
-            style={{ borderLeft: "3px solid var(--accent)" }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 16,
-              }}
-            >
-              <div>
-                <span
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  {selectedWorkout.training_date}
-                </span>
-                <span
-                  style={{
-                    marginLeft: 12,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "var(--accent)",
-                    background: "var(--accent-light)",
-                    padding: "2px 10px",
-                    borderRadius: 10,
-                  }}
-                >
-                  {FOCUS_OPTIONS.find(
-                    (f) => f.value === selectedWorkout.focus_area,
-                  )?.label ?? selectedWorkout.focus_area}
-                </span>
-              </div>
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                {selectedWorkout.exercise_sets.length} 个动作
-                {" · "}{" "}
-                {selectedWorkout.exercise_sets.reduce((s, e) => s + e.sets, 0)}{" "}
-                组
-              </span>
-            </div>
-
-            {selectedWorkout.exercise_sets.map((ex, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "10px 0",
-                  borderBottom:
-                    i < selectedWorkout.exercise_sets.length - 1
-                      ? "1px solid var(--border-light)"
-                      : "none",
-                }}
-              >
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: "var(--radius-sm)",
-                    background: "var(--accent-light)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Dumbbell size={16} color="var(--accent)" />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    {ex.exercise_name}
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                    {ex.equipment}
-                    {ex.rpe != null && ` · RPE ${ex.rpe}`}
-                  </div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    {ex.sets}×{ex.reps} · {ex.weight_kg}kg
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                    估 1RM {est1RM(ex.weight_kg, ex.reps)}kg
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {selectedWorkout.notes && (
-              <div
-                style={{
-                  marginTop: 12,
-                  paddingTop: 12,
-                  borderTop: "1px solid var(--border-light)",
-                  fontSize: 13,
-                  color: "var(--text-secondary)",
-                  lineHeight: 1.6,
-                }}
-              >
-                {selectedWorkout.notes}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ═══ Section 4: Training Split ═══ */}
-      <div className="detail-section">
-        <div className="detail-section-title">训练分化计划</div>
-        <div className="card">
-          <table className="split-table">
-            <thead>
-              <tr>
-                <th>星期</th>
-                <th>训练部位</th>
-                <th>类型</th>
-              </tr>
-            </thead>
-            <tbody>
-              {["周一", "周三", "周五"].map((day) => (
-                <tr key={day}>
-                  <td>{day}</td>
-                  <td>{day === "周三" ? "下肢" : "上肢"}</td>
-                  <td style={{ color: "var(--accent)", fontWeight: 500 }}>
-                    力量训练
-                  </td>
-                </tr>
-              ))}
-              {["周二", "周四", "周六", "周日"].map((day) => (
-                <tr key={day}>
-                  <td>{day}</td>
-                  <td>—</td>
-                  <td style={{ color: "var(--mint)" }}>休息/有氧</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ═══ Section 5: Recent Workouts ═══ */}
+      {/* Recent Workouts */}
       {workouts.length > 0 && (
         <div className="detail-section">
           <div className="detail-section-title">最近训练</div>
@@ -778,46 +350,23 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
             {workouts.slice(0, 5).map((w) => (
               <div
                 key={w.id}
-                className="card"
-                style={{
-                  cursor: "pointer",
-                  padding: "12px 16px",
-                }}
+                className="card recent-workout-item"
                 onClick={() => setSelectedDate(w.training_date)}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
+                <div className="recent-workout-header">
                   <div>
-                    <span
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: "var(--text-primary)",
-                      }}
-                    >
+                    <span className="recent-workout-date">
                       {w.training_date}
                     </span>
-                    <span
-                      style={{
-                        marginLeft: 10,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: "var(--accent)",
-                      }}
-                    >
+                    <span className="recent-workout-focus">
                       {FOCUS_OPTIONS.find((f) => f.value === w.focus_area)
                         ?.label ?? w.focus_area}
                     </span>
                   </div>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                  <span className="recent-workout-summary">
                     {w.exercise_sets.length} 动作 ·{" "}
-                    {w.exercise_sets.reduce((s, e) => s + e.sets, 0)} 组{" · "}
-                    最高 1RM{" "}
+                    {w.exercise_sets.reduce((s, e) => s + e.sets, 0)} 组 · 最高
+                    1RM{" "}
                     {Math.max(
                       0,
                       ...w.exercise_sets.map((e) =>
@@ -833,49 +382,27 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
         </div>
       )}
 
-      {/* ═══ Section 6: Log Workout Form ═══ */}
+      {/* Log Workout Form */}
       <div className="detail-section">
         {showForm ? (
           <div className="card">
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 16,
-              }}
-            >
+            <div className="training-form-header">
               <span className="detail-section-title" style={{ margin: 0 }}>
                 记录今日训练
               </span>
               <button
+                className="training-form-close"
                 onClick={() => setShowForm(false)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                  padding: 4,
-                }}
               >
                 <X size={16} />
               </button>
             </div>
 
-            <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+            <div className="training-form-fields-row">
               <select
+                className="training-form-select"
                 value={formFocus}
                 onChange={(e) => setFormFocus(e.target.value)}
-                style={{
-                  padding: "8px 10px",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--border)",
-                  fontSize: 14,
-                  fontFamily: "inherit",
-                  background: "var(--bg-primary)",
-                  color: "var(--text-primary)",
-                  flex: 1,
-                }}
               >
                 {FOCUS_OPTIONS.map((f) => (
                   <option key={f.value} value={f.value}>
@@ -884,38 +411,18 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
                 ))}
               </select>
               <input
+                className="training-form-notes-input"
                 type="text"
                 placeholder="备注 (可选)"
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
-                style={{
-                  flex: 2,
-                  padding: "8px 10px",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--border)",
-                  fontSize: 14,
-                  fontFamily: "inherit",
-                  background: "var(--bg-primary)",
-                  color: "var(--text-primary)",
-                }}
               />
             </div>
 
             {formExercises.map((ex, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  gap: 6,
-                  marginBottom: 8,
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  padding: 10,
-                  background: "var(--bg-secondary)",
-                  borderRadius: "var(--radius-sm)",
-                }}
-              >
+              <div key={i} className="training-form-exercise-row">
                 <input
+                  className="training-form-exercise-name"
                   type="text"
                   placeholder="动作名称"
                   value={ex.exercise_name}
@@ -924,34 +431,14 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
                     next[i] = { ...next[i], exercise_name: e.target.value };
                     setFormExercises(next);
                   }}
-                  style={{
-                    flex: 3,
-                    minWidth: 120,
-                    padding: "6px 8px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border)",
-                    fontSize: 13,
-                    fontFamily: "inherit",
-                    background: "var(--bg-primary)",
-                    color: "var(--text-primary)",
-                  }}
                 />
                 <select
+                  className="training-form-sm-select"
                   value={ex.equipment}
                   onChange={(e) => {
                     const next = [...formExercises];
                     next[i] = { ...next[i], equipment: e.target.value };
                     setFormExercises(next);
-                  }}
-                  style={{
-                    width: 80,
-                    padding: "6px 4px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border)",
-                    fontSize: 12,
-                    fontFamily: "inherit",
-                    background: "var(--bg-primary)",
-                    color: "var(--text-primary)",
                   }}
                 >
                   {EQUIPMENT_OPTIONS.map((eq) => (
@@ -961,6 +448,7 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
                   ))}
                 </select>
                 <input
+                  className="training-form-weight-input"
                   type="number"
                   placeholder="重量"
                   value={ex.weight_kg || ""}
@@ -972,18 +460,9 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
                     };
                     setFormExercises(next);
                   }}
-                  style={{
-                    width: 65,
-                    padding: "6px 4px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border)",
-                    fontSize: 13,
-                    fontFamily: "inherit",
-                    background: "var(--bg-primary)",
-                    color: "var(--text-primary)",
-                  }}
                 />
                 <input
+                  className="training-form-sm-input"
                   type="number"
                   placeholder="组"
                   value={ex.sets || ""}
@@ -995,18 +474,9 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
                     };
                     setFormExercises(next);
                   }}
-                  style={{
-                    width: 50,
-                    padding: "6px 4px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border)",
-                    fontSize: 13,
-                    fontFamily: "inherit",
-                    background: "var(--bg-primary)",
-                    color: "var(--text-primary)",
-                  }}
                 />
                 <input
+                  className="training-form-sm-input"
                   type="number"
                   placeholder="次"
                   value={ex.reps || ""}
@@ -1018,18 +488,9 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
                     };
                     setFormExercises(next);
                   }}
-                  style={{
-                    width: 50,
-                    padding: "6px 4px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border)",
-                    fontSize: 13,
-                    fontFamily: "inherit",
-                    background: "var(--bg-primary)",
-                    color: "var(--text-primary)",
-                  }}
                 />
                 <select
+                  className="training-form-rpe-select"
                   value={ex.rpe ?? ""}
                   onChange={(e) => {
                     const next = [...formExercises];
@@ -1042,16 +503,6 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
                     };
                     setFormExercises(next);
                   }}
-                  style={{
-                    width: 62,
-                    padding: "6px 2px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border)",
-                    fontSize: 12,
-                    fontFamily: "inherit",
-                    background: "var(--bg-primary)",
-                    color: "var(--text-primary)",
-                  }}
                 >
                   <option value="">RPE</option>
                   {[6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10].map((r) => (
@@ -1062,16 +513,10 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
                 </select>
                 {formExercises.length > 1 && (
                   <button
+                    className="training-form-remove-btn"
                     onClick={() =>
                       setFormExercises(formExercises.filter((_, j) => j !== i))
                     }
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "var(--danger)",
-                      cursor: "pointer",
-                      padding: 4,
-                    }}
                   >
                     <X size={14} />
                   </button>
@@ -1080,6 +525,7 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
             ))}
 
             <button
+              className="training-form-add-btn"
               onClick={() =>
                 setFormExercises([
                   ...formExercises,
@@ -1091,18 +537,6 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
                   },
                 ])
               }
-              style={{
-                width: "100%",
-                padding: "8px",
-                border: "1px dashed var(--border)",
-                borderRadius: "var(--radius-sm)",
-                background: "transparent",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                fontSize: 12,
-                marginBottom: 16,
-              }}
             >
               + 添加动作
             </button>
@@ -1117,29 +551,13 @@ export function TrainingPage({ data, onRefresh, expandFormTrigger }: Props) {
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => setShowForm(true)}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: "var(--radius)",
-              border: "1px dashed var(--border)",
-              background: "var(--bg-card)",
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              fontFamily: "inherit",
-              fontSize: 13,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-            }}
-          >
+          <button className="show-form-btn" onClick={() => setShowForm(true)}>
             <Plus size={14} />
             {editingId ? "保存修改" : "记录今日训练"}
           </button>
         )}
       </div>
+
       <HistoryList
         title="训练历史"
         items={workoutHistoryItems}

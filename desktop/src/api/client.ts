@@ -55,6 +55,8 @@ export interface DashboardData {
     current_muscle_kg: number | null;
     target_muscle_kg: number | null;
     muscle_gap_kg: number | null;
+    target_date?: string;
+    start_date?: string;
   };
   weight_trend: Array<{
     log_date: string;
@@ -129,21 +131,50 @@ export interface ChatMeta {
   thinking_process: string;
 }
 
+export interface ToolCallEvent {
+  id: string;
+  tool_name: string;
+  arguments: string;
+  result?: {
+    success?: boolean;
+    message?: string;
+    error?: string;
+    rendered?: string;
+    form_schema?: Record<string, unknown>;
+    chart_config?: Record<string, unknown>;
+  };
+}
+
+export interface SendMessageOptions {
+  thinkingMode?: boolean;
+  model?: string;
+  images?: string[];
+}
+
 export async function sendMessage(
   messages: ChatMessage[],
   onToken: (token: string) => void,
   onDone: (meta: ChatMeta) => void,
   onError: (err: string) => void,
+  onThinking?: (token: string) => void,
+  onToolCall?: (call: ToolCallEvent) => void,
+  onToolResult?: (id: string, result: ToolCallEvent["result"]) => void,
+  options?: SendMessageOptions,
 ): Promise<void> {
   try {
+    const body: Record<string, unknown> = {
+      messages,
+      enable_rag: true,
+      enable_profile: true,
+      thinking_mode: options?.thinkingMode ?? false,
+    };
+    if (options?.model) body.model = options.model;
+    if (options?.images?.length) body.images = options.images;
+
     const response = await fetch(`${API_BASE}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages,
-        enable_rag: true,
-        enable_profile: true,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -155,6 +186,7 @@ export async function sendMessage(
 
     const decoder = new TextDecoder();
     let buffer = "";
+    let doneCalled = false;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -165,14 +197,26 @@ export async function sendMessage(
       buffer = lines.pop() || "";
 
       for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const data = line.slice(6);
-          if (data === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.type === "token") {
-              onToken(parsed.content);
-            } else if (parsed.type === "meta") {
+        if (!line.startsWith("data: ")) continue;
+        const data = line.slice(6);
+        if (data === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.type === "token") {
+            onToken(parsed.content);
+          } else if (parsed.type === "thinking") {
+            onThinking?.(parsed.content);
+          } else if (parsed.type === "tool_call") {
+            onToolCall?.({
+              id: parsed.id,
+              tool_name: parsed.tool_name,
+              arguments: parsed.arguments,
+            });
+          } else if (parsed.type === "tool_result") {
+            onToolResult?.(parsed.id, parsed.result);
+          } else if (parsed.type === "meta") {
+            if (!doneCalled) {
+              doneCalled = true;
               onDone({
                 rag_sources: parsed.rag_sources || [],
                 route_tier: parsed.route_tier,
@@ -181,14 +225,30 @@ export async function sendMessage(
                 thinking_time_ms: parsed.thinking_time_ms ?? 0,
                 thinking_process: parsed.thinking_process ?? "",
               });
-            } else if (parsed.type === "error") {
-              onError(parsed.message);
             }
-          } catch {
-            // skip malformed JSON
+          } else if (parsed.type === "error") {
+            onError(parsed.message);
+          }
+        } catch {
+          // Malformed JSON — log for debugging but don't break the stream
+          if (data.length < 200) {
+            console.warn("[SSE] Failed to parse:", data);
+          } else {
+            console.warn("[SSE] Failed to parse chunk of length", data.length);
           }
         }
       }
+    }
+    // If stream ended without a meta event, call onDone with empty data
+    if (!doneCalled) {
+      onDone({
+        rag_sources: [],
+        route_tier: "",
+        cost: 0,
+        tokens_used: 0,
+        thinking_time_ms: 0,
+        thinking_process: "",
+      });
     }
   } catch (err) {
     onError(err instanceof Error ? err.message : "Unknown error");
@@ -277,7 +337,6 @@ export interface NutritionLogCreate {
   carbs_g: number;
   fat_g: number;
   water_liters: number;
-  body_weight_kg?: number | null;
 }
 
 export interface ReadinessLogCreate {
@@ -313,16 +372,21 @@ export interface BodyMetricCreate {
   hip_cm?: number | null;
   inbody_score?: number | null;
   bmr_kcal?: number | null;
+  source?: string;
+  source_asset_id?: number | null;
 }
 
+/** @deprecated Use useActions().dispatch("nutrition.create", data) instead */
 export async function createNutritionLog(data: NutritionLogCreate) {
   return request("/nutrition", { method: "POST", body: JSON.stringify(data) });
 }
 
+/** @deprecated Use useActions().dispatch("readiness.create", data) instead */
 export async function createReadinessLog(data: ReadinessLogCreate) {
   return request("/readiness", { method: "POST", body: JSON.stringify(data) });
 }
 
+/** @deprecated Use useActions().dispatch("body_metric.upsert", data) instead */
 export async function createBodyMetric(data: BodyMetricCreate) {
   return request("/body-metrics", {
     method: "POST",
@@ -357,6 +421,7 @@ export async function fetchBodyMetrics(
   return request<BodyMetricHistory[]>(`/body-metrics?days=${days}`);
 }
 
+/** @deprecated Use useActions().dispatch("workout.create", data) instead */
 export async function createWorkout(data: {
   training_date: string;
   focus_area: string;
@@ -374,10 +439,6 @@ export interface NutritionLogEntry {
   carbs_g: number;
   fat_g: number;
   water_liters: number;
-  body_weight_kg: number | null;
-  body_fat_rate_pct: number | null;
-  muscle_weight_kg: number | null;
-  waist_cm: number | null;
   notes: string;
   created_at: string;
 }
@@ -403,6 +464,25 @@ export interface GoalConfig {
   latest_muscle_kg: number | null;
 }
 
+export interface CycleDayPlan {
+  day: number;
+  focus: string;
+  exercises: string[];
+}
+
+export interface PlanState {
+  cycle_week: number;
+  next_training_time: string;
+  weekly_plan: Record<string, string>;
+  cycle_length_days: number;
+  cycle_start_date: string;
+  cycle_day_plan: CycleDayPlan[];
+}
+
+export async function fetchPlanState(): Promise<PlanState> {
+  return request<PlanState>("/plan");
+}
+
 export async function fetchNutritionHistory(
   days: number = 30,
 ): Promise<NutritionLogEntry[]> {
@@ -419,6 +499,7 @@ export async function fetchGoalConfig(): Promise<GoalConfig> {
   return request<GoalConfig>("/goals");
 }
 
+/** @deprecated Use useActions().dispatch("goal.update", data) instead */
 export async function updateGoalConfig(data: GoalConfig) {
   return request("/goals", { method: "POST", body: JSON.stringify(data) });
 }
@@ -449,10 +530,6 @@ export interface NutritionLogUpdate {
   carbs_g?: number | null;
   fat_g?: number | null;
   water_liters?: number | null;
-  body_weight_kg?: number | null;
-  body_fat_rate_pct?: number | null;
-  muscle_weight_kg?: number | null;
-  waist_cm?: number | null;
   notes?: string | null;
 }
 

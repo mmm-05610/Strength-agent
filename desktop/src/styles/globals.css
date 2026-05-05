@@ -354,14 +354,17 @@ body {
 /* ---- Chat Input ---- */
 .chat-input-container {
   display: flex;
-  padding: 14px 20px;
+  flex-direction: column;
+  padding: 10px 16px;
   border-top: 1px solid var(--border-light);
-  gap: 10px;
+  gap: 8px;
   background: var(--bg-card);
 }
 
 .chat-input {
   flex: 1;
+  min-height: 40px;
+  max-height: 120px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -371,7 +374,7 @@ body {
   font-size: 14px;
   resize: none;
   outline: none;
-  overflow: hidden;
+  overflow-y: auto;
   transition:
     border-color 0.2s,
     box-shadow 0.2s;
@@ -1897,4 +1900,2170 @@ body {
   color: var(--text-secondary);
   margin-bottom: 10px;
   letter-spacing: 0.3px;
+}
+
+/* ============================================================
+   Chat Panel — header settings
+   ============================================================ */
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-light);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 15px;
+}
+.chat-header-actions {
+  display: flex;
+  gap: 6px;
+}
+.thinking-toggle-btn,
+.settings-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.thinking-toggle-btn:hover,
+.settings-toggle-btn:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+.thinking-toggle-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.settings-toggle-btn.active {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ---- Chat Settings Panel ---- */
+.chat-settings {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fadeIn 0.2s ease;
+}
+.chat-setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.chat-setting-item label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.chat-setting-item select {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.chat-cost-info {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* ---- Toggle Switch ---- */
+.toggle-switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  display: inline-block;
+}
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 22px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 3px;
+  top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: all 0.25s ease;
+}
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--accent);
+}
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(18px);
+}
+
+/* ============================================================
+   Rich Markdown
+   ============================================================ */
+.rich-markdown {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+.rich-markdown p {
+  margin-bottom: 8px;
+}
+.rich-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+/* Tables */
+.rmd-table-wrap {
+  overflow-x: auto;
+  margin: 12px 0;
+}
+.rmd-table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.rmd-table-wrap th {
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 2px solid var(--border);
+}
+.rmd-table-wrap td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* Blockquote */
+.rmd-blockquote {
+  border-left: 3px solid var(--accent);
+  padding: 8px 14px;
+  margin: 10px 0;
+  background: var(--accent-light);
+  border-radius: 0 8px 8px 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* Code */
+.rmd-inline-code {
+  background: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+}
+.rmd-code-block {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  padding: 12px 16px;
+  border-radius: 10px;
+  overflow-x: auto;
+  margin: 10px 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Links */
+.rmd-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+.rmd-link:hover {
+  text-decoration: underline;
+}
+
+/* Lists */
+.rmd-list,
+.rmd-list-ordered {
+  padding-left: 20px;
+  margin: 6px 0;
+}
+.rmd-list li,
+.rmd-list-ordered li {
+  margin-bottom: 3px;
+}
+
+/* Dividers */
+.rmd-divider {
+  border: none;
+  border-top: 1px solid var(--border-light);
+  margin: 12px 0;
+}
+
+/* Headings */
+.rmd-h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 14px 0 6px;
+  color: var(--text-primary);
+}
+.rmd-h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 12px 0 4px;
+  color: var(--text-primary);
+}
+
+/* Error */
+.rmd-error {
+  color: var(--danger);
+  font-size: 12px;
+  padding: 8px;
+  background: var(--danger-light);
+  border-radius: 8px;
+  margin: 4px 0;
+}
+
+/* ============================================================
+   Mini Chart (SVG charts in markdown)
+   ============================================================ */
+.mini-chart {
+  margin: 12px 0;
+  padding: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+}
+.mini-chart-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.mini-chart-svg {
+  width: 100%;
+  height: auto;
+}
+.gauge-fill {
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+/* ============================================================
+   Dynamic Form
+   ============================================================ */
+.dynamic-form {
+  margin: 10px 0;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--accent-soft);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+.dynamic-form.submitting {
+  pointer-events: none;
+}
+.dynamic-form.submitted {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--success);
+  font-weight: 500;
+  font-size: 13px;
+}
+.df-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  z-index: 2;
+  border-radius: 12px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  animation: df-fade-in 0.2s ease;
+}
+@keyframes df-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.df-submitted-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--success);
+  color: white;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 700;
+}
+.df-header {
+  margin-bottom: 12px;
+}
+.df-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.df-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.df-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.df-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.df-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.df-required {
+  color: var(--danger);
+}
+.df-unit {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.df-input {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: border-color 0.2s;
+  width: 100%;
+}
+.df-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+.df-submit {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.df-submit:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.df-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.df-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  font-size: 12px;
+  color: var(--danger);
+}
+.df-retry {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  font-family: inherit;
+}
+
+/* ============================================================
+   Tool Call Card
+   ============================================================ */
+.tool-call-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+.tool-call-card {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  transition: all 0.2s;
+}
+.tool-call-card.pending {
+  border-color: var(--accent-soft);
+  background: var(--accent-light);
+}
+.tool-call-card.success {
+  border-color: var(--success-light);
+}
+.tool-call-card.error {
+  border-color: var(--danger-light);
+}
+.tcc-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.tcc-status-icon {
+  margin-left: auto;
+  color: var(--text-muted);
+}
+.tcc-status-icon .spin {
+  animation: spin 1s linear infinite;
+}
+.tool-call-card.success .tcc-status-icon {
+  color: var(--success);
+}
+.tool-call-card.error .tcc-status-icon {
+  color: var(--danger);
+}
+.tcc-args {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tcc-result {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-light);
+}
+.tcc-error {
+  font-size: 12px;
+  color: var(--danger);
+  margin-top: 4px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================================
+   AI Thinking Content
+   ============================================================ */
+.ai-thinking .thinking-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.ai-thinking .thinking-toggle:hover {
+  background: var(--accent-light);
+}
+.ai-thinking .thinking-body {
+  margin-top: 6px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  border-left: 2px solid var(--accent);
+}
+
+/* ============================================================
+   Chat Input — file upload
+   ============================================================ */
+.chat-input-container.drag-over {
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
+.chat-input-container {
+  position: relative;
+}
+.drop-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-light);
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 500;
+  z-index: 10;
+  pointer-events: none;
+}
+.chat-images-preview {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px 0;
+}
+.chat-image-thumb {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.chat-image-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.chat-image-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.chat-image-loading {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.chat-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 0;
+}
+.attach-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.attach-button:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+.attach-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.file-input-hidden {
+  display: none;
+}
+
+/* ============================================================
+   User Images in messages
+   ============================================================ */
+.user-images {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.user-image-thumb {
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--border-light);
+}
+
+/* ============================================================
+   Onboarding Flow
+   ============================================================ */
+.onboarding-flow {
+  padding: 16px 18px;
+}
+.onboarding-progress {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  justify-content: center;
+}
+.onboarding-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: all 0.3s;
+}
+.onboarding-dot.active {
+  background: var(--accent);
+  width: 20px;
+  border-radius: 4px;
+}
+.onboarding-card {
+  padding: 18px;
+  background: var(--bg-card);
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+  text-align: center;
+}
+.onboarding-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent-light);
+  color: var(--accent);
+  margin: 0 auto 12px;
+}
+.onboarding-question {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  line-height: 1.6;
+}
+.onboarding-input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.onboarding-input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.onboarding-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+.onboarding-send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.onboarding-send:hover {
+  background: var(--accent-hover);
+}
+.onboarding-send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.onboarding-skip {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 12px;
+  transition: color 0.2s;
+}
+.onboarding-skip:hover {
+  color: var(--text-secondary);
+}
+
+/* ============================================================
+   Redesigned Thinking Inline (default expanded)
+   ============================================================ */
+.thinking-inline {
+  margin-bottom: 8px;
+  animation: fadeIn 0.2s ease;
+}
+.thinking-inline-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.thinking-inline-toggle:hover {
+  background: var(--accent-soft);
+}
+.thinking-inline-body {
+  margin-top: 6px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* ============================================================
+   Streaming Text + Cursor
+   ============================================================ */
+.streaming-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.cursor-blink {
+  animation: cursorBlink 0.8s ease-in-out infinite;
+  color: var(--accent);
+  font-weight: 300;
+}
+@keyframes cursorBlink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ============================================================
+   Typing Indicator (3 bouncing dots)
+   ============================================================ */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 20px;
+}
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: typingBounce 1s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes typingBounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+/* ============================================================
+   Inline Proposal Card (redesigned — chat stream pattern)
+   ============================================================ */
+.proposal-inline {
+  margin-top: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  animation: fadeInUp 0.3s ease both;
+}
+.proposal-inline.decided {
+  border-left-width: 3px;
+  border-left-color: var(--success);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.proposal-inline.decided.approved {
+  border-left-color: var(--success);
+  background: var(--success-light);
+}
+.proposal-inline.decided.rejected {
+  border-left-color: var(--border);
+  background: var(--bg-secondary);
+}
+.proposal-decided-bar {
+  width: 3px;
+  height: 18px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.proposal-inline-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.proposal-inline-header:hover {
+  background: var(--bg-secondary);
+}
+.proposal-inline-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.proposal-inline-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+.proposal-risk-icon {
+  color: var(--warning);
+  flex-shrink: 0;
+}
+.proposal-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.proposal-expand-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.proposal-inline-reason {
+  padding: 0 14px 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.proposal-diff-table {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 14px 10px;
+}
+.proposal-diff-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  gap: 12px;
+}
+.proposal-diff-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 36px;
+}
+.proposal-diff-values {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.proposal-diff-old {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+.proposal-diff-arrow {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.proposal-diff-new {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.proposal-inline-actions {
+  display: flex;
+  gap: 8px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border-light);
+}
+.proposal-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.proposal-btn-approve {
+  background: var(--success);
+  color: #fff;
+}
+.proposal-btn-approve:hover {
+  opacity: 0.88;
+}
+.proposal-btn-reject {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+}
+.proposal-btn-reject:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-light);
+}
+
+/* ============================================================
+   AI Chart Card (Recharts wrapper)
+   ============================================================ */
+.ai-chart-card {
+  margin: 12px 0;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+}
+.ai-chart-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+.ai-gauge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+}
+.ai-gauge-svg {
+  width: 180px;
+  height: 120px;
+}
+
+/* ============================================================
+   Rich Markdown — additional elements
+   ============================================================ */
+.rmd-p {
+  margin-bottom: 6px;
+}
+.rmd-p:last-child {
+  margin-bottom: 0;
+}
+.rmd-strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   Fitness-Style Chat Toolbar
+   ============================================================ */
+.chat-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
+  gap: 12px;
+  flex-shrink: 0;
+}
+.chat-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.chat-toolbar-brand {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+.chat-toolbar-cost {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+.chat-toolbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Segmented control in toolbar */
+.toolbar-segmented {
+  display: flex;
+  background: var(--bg-secondary);
+  border-radius: 9px;
+  padding: 2px;
+  gap: 1px;
+}
+.tseg-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+.tseg-btn:hover {
+  color: var(--text-secondary);
+}
+.tseg-btn.active {
+  background: var(--bg-card);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* Model badge in toolbar */
+.toolbar-model-wrap {
+  position: relative;
+}
+.toolbar-model-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.toolbar-model-btn:hover {
+  border-color: var(--accent-soft);
+  color: var(--accent);
+}
+.toolbar-model-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: var(--shadow-lg);
+  min-width: 130px;
+  z-index: 50;
+  animation: fadeInScale 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.toolbar-model-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 12px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.toolbar-model-item:hover {
+  background: var(--bg-secondary);
+}
+.toolbar-model-item.active {
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+}
+.toolbar-model-check {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ============================================================
+   Quick Action Chips
+   ============================================================ */
+.chat-quick-chips {
+  display: flex;
+  gap: 6px;
+  padding: 10px 16px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  background: var(--bg-primary);
+}
+.chat-quick-chips::-webkit-scrollbar {
+  display: none;
+}
+.quick-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.quick-chip:hover {
+  background: var(--accent-light);
+  border-color: var(--accent-soft);
+  color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+.quick-chip:active {
+  transform: translateY(0);
+}
+.quick-chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ============================================================
+   Fitness-Style Proposal Card (inline in chat)
+   ============================================================ */
+.proposal-fitness {
+  margin-top: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--accent);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  animation: fadeInUp 0.3s ease both;
+}
+
+.proposal-fitness.decided {
+  padding: 10px 14px;
+  border-left-color: var(--success);
+}
+.proposal-fitness.decided.approved {
+  background: var(--success-light);
+}
+.proposal-fitness.decided.rejected {
+  background: var(--bg-secondary);
+  border-left-color: var(--border);
+}
+.proposal-fitness-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.proposal-fitness.decided.approved .proposal-fitness-result {
+  color: var(--success);
+}
+
+/* Header */
+.proposal-fitness-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+.proposal-fitness-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.proposal-fitness-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.proposal-fitness-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+.proposal-fitness-reason {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.proposal-fitness-risk {
+  flex-shrink: 0;
+}
+
+/* Diff chips */
+.proposal-fitness-diff {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 12px 10px;
+}
+.pf-diff-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 11px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+.pf-diff-chip.new {
+  background: var(--success-light);
+  color: #2ea89e;
+}
+.pf-diff-chip.changed {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+.pf-diff-label {
+  font-weight: 600;
+  font-size: 10px;
+  opacity: 0.7;
+}
+.pf-diff-old {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.pf-diff-arrow {
+  font-size: 9px;
+  opacity: 0.5;
+}
+.pf-diff-new {
+  font-weight: 700;
+}
+.pf-diff-more {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.pf-diff-more:hover {
+  background: var(--accent-light);
+}
+
+/* Actions */
+.proposal-fitness-actions {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-light);
+}
+.pf-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.pf-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pf-btn-approve {
+  background: var(--success);
+  color: #fff;
+}
+.pf-btn-approve:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.pf-btn-reject {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+}
+.pf-btn-reject:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-light);
+}
+
+/* Proposal error */
+.proposal-fitness-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 10px;
+  font-size: 11px;
+  color: var(--danger);
+}
+.proposal-fitness-error span {
+  flex: 1;
+}
+
+/* ToolCallCard form wrapper */
+.tcc-form-wrap {
+  padding: 8px 0;
+}
+
+/* ============================================================
+   Form Submitted Summary (after AI form submission)
+   ============================================================ */
+.form-submitted-summary {
+  margin: 4px 0;
+  padding: 10px 12px;
+  background: var(--success-light);
+  border: 1px solid var(--success);
+  border-radius: 10px;
+  animation: fadeInUp 0.3s ease both;
+}
+
+.fss-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2ea89e;
+  margin-bottom: 6px;
+}
+
+.fss-changes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.fss-change-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+}
+
+.fss-change-chip.changed {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.fss-change-label {
+  font-weight: 600;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.fss-change-old {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.fss-change-arrow {
+  font-size: 9px;
+  opacity: 0.5;
+}
+
+.fss-change-new {
+  font-weight: 700;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   Batch Summary Card
+   ============================================================ */
+.batch-summary-card {
+  margin: 12px 0;
+  background: var(--bg-card);
+  border: 1px solid var(--success-light);
+  border-left: 3px solid var(--success);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  animation: fadeInUp 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.batch-summary-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--success-light);
+  font-size: 13px;
+  font-weight: 600;
+  color: #2ea89e;
+}
+
+.batch-summary-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.batch-summary-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 12px;
+}
+
+.batch-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  font-size: 12px;
+}
+
+.batch-summary-item.failed {
+  background: var(--danger-light);
+}
+
+.batch-summary-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 48px;
+}
+
+.batch-summary-old {
+  text-decoration: line-through;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.batch-summary-arrow {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.batch-summary-new {
+  color: var(--success);
+  font-weight: 600;
+  flex: 1;
+}
+
+.batch-summary-icon {
+  flex-shrink: 0;
+}
+
+.batch-summary-icon.success {
+  color: var(--success);
+}
+
+.batch-summary-icon.error {
+  color: var(--danger);
+}
+
+/* ============================================================
+   Training Page — Streak & Calendar header
+   ============================================================ */
+.streak-counter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.streak-counter-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.calendar-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.calendar-header-nav {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* ============================================================
+   Training Page — Metric Status Colors
+   ============================================================ */
+.metric-status-done {
+  color: var(--mint);
+}
+.metric-status-pending {
+  color: var(--warning);
+}
+.metric-status-rest {
+  color: var(--text-secondary);
+}
+.consistency-good {
+  color: var(--mint);
+}
+.consistency-mid {
+  color: var(--warning);
+}
+.consistency-poor {
+  color: var(--danger);
+}
+
+/* ============================================================
+   Training Page — Workout Detail
+   ============================================================ */
+.workout-detail-card {
+  border-left: 3px solid var(--accent);
+}
+.workout-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.workout-detail-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.workout-detail-focus-badge {
+  margin-left: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+.workout-detail-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Exercise Item */
+.exercise-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+.exercise-item:not(:last-child) {
+  border-bottom: 1px solid var(--border-light);
+}
+.exercise-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.exercise-info {
+  flex: 1;
+  min-width: 0;
+}
+.exercise-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.exercise-equipment {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.exercise-stats {
+  text-align: right;
+}
+.exercise-volume {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.exercise-1rm {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Workout Notes */
+.workout-notes {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ============================================================
+   Training Page — Split Table Types
+   ============================================================ */
+.split-type-strength {
+  color: var(--accent);
+  font-weight: 500;
+}
+.split-type-rest {
+  color: var(--mint);
+}
+
+/* ============================================================
+   Training Page — Log Form
+   ============================================================ */
+.training-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.training-form-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+}
+.training-form-close:hover {
+  color: var(--text-primary);
+}
+
+.training-form-fields-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.training-form-select {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.training-form-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+.training-form-notes-input {
+  flex: 2;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.training-form-notes-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+/* Exercise row in form */
+.training-form-exercise-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 10px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+.training-form-exercise-name {
+  flex: 3;
+  min-width: 120px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.training-form-exercise-name:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+.training-form-sm-select {
+  width: 80px;
+  padding: 6px 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.training-form-sm-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+.training-form-weight-input {
+  width: 65px;
+  padding: 6px 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.training-form-weight-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+.training-form-sm-input {
+  width: 50px;
+  padding: 6px 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.training-form-sm-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+.training-form-rpe-select {
+  width: 62px;
+  padding: 6px 2px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.training-form-rpe-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+.training-form-remove-btn {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  padding: 4px;
+}
+.training-form-remove-btn:hover {
+  color: #d44;
+}
+
+.training-form-add-btn {
+  width: 100%;
+  padding: 8px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  margin-bottom: 16px;
+  transition: all 0.15s;
+}
+.training-form-add-btn:hover {
+  border-color: var(--accent-soft);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* ============================================================
+   Training Page — Show Form Trigger
+   ============================================================ */
+.show-form-btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 1px dashed var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+.show-form-btn:hover {
+  border-color: var(--accent-soft);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* ============================================================
+   Training Page — Recent Workouts
+   ============================================================ */
+.recent-workout-item {
+  cursor: pointer;
+  padding: 12px 16px;
+}
+.recent-workout-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.recent-workout-date {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.recent-workout-focus {
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.recent-workout-summary {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   Score Dial
+   ============================================================ */
+.score-dial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.score-dial-chart {
+  position: relative;
+}
+
+.score-dial-value {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.score-dial-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ============================================================
+   Readiness Overview
+   ============================================================ */
+.readiness-dials {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 28px 16px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.readiness-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.metric-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.metric-bar-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  width: 50px;
+  flex-shrink: 0;
+}
+
+.metric-bar-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.metric-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.metric-bar-score {
+  font-size: 12px;
+  font-weight: 600;
+  width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Detail Page — Metric Status
+   ============================================================ */
+.detail-metric-status {
+  font-size: 11px;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+/* ============================================================
+   7-Day Averages Card Row
+   ============================================================ */
+.avg-cards-row {
+  display: flex;
+  gap: 12px;
+}
+
+.avg-card {
+  flex: 1;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  border: 1px solid var(--border-light);
+  text-align: center;
+}
+
+.avg-card-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.avg-card-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ============================================================
+   AI Recommendation
+   ============================================================ */
+.ai-recommendation-great {
+  font-weight: 600;
+  color: var(--mint);
+}
+
+/* ============================================================
+   Recovery Form
+   ============================================================ */
+.recovery-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.recovery-form-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.recovery-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.recovery-form-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.recovery-form-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.recovery-form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.recovery-form-add-btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 1px dashed var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.recovery-form-add-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border-color: var(--border);
 }

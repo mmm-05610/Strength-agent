@@ -1,30 +1,47 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchDashboard } from "../api/client";
 import type { DashboardData } from "../api/client";
 
-export function useDashboard() {
+export interface DashboardState {
+  data: DashboardData | null;
+  loading: boolean;
+  error: string | null;
+  refresh: () => void;
+}
+
+export function useDashboard(): DashboardState {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
       const result = await fetchDashboard();
-      setData(result);
-      setError(null);
+      if (mountedRef.current) {
+        setData(result);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load dashboard");
+      if (mountedRef.current) {
+        setError(
+          err instanceof Error ? err.message : "Failed to load dashboard",
+        );
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     refresh();
-    // Poll every 30 seconds for updates
-    const interval = setInterval(refresh, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      mountedRef.current = false;
+    };
   }, [refresh]);
 
   return { data, loading, error, refresh };

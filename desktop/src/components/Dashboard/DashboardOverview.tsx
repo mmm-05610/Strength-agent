@@ -16,7 +16,6 @@ import {
   Dumbbell,
   Heart,
   Target,
-  Plus,
   AlertTriangle,
   Info,
   CheckCircle2,
@@ -307,33 +306,25 @@ export function DashboardOverview({ data, onNavigate }: Props) {
   // Goal progress percentage
   const goalProgressPct = useMemo(() => {
     if (!goal_progress) return 0;
-    const total = Math.abs(
-      goal_progress.target_weight_kg -
-        (goal_progress.goal_type === "muscle_gain"
-          ? (data.weight_trend[0]?.body_weight_kg ??
-            goal_progress.current_weight_kg)
-          : goal_progress.current_weight_kg),
-    );
-    const done = Math.abs(
-      goal_progress.current_weight_kg -
-        (data.weight_trend[0]?.body_weight_kg ??
-          goal_progress.current_weight_kg),
-    );
-    // Simplified: just show based on days
     if (!goal_progress.days_remaining) return 100;
-    const totalDays =
-      (new Date(goal_progress.target_date).getTime() -
-        new Date(goal_progress.start_date).getTime()) /
-      (1000 * 60 * 60 * 24);
-    return Math.min(
-      100,
-      Math.max(
-        0,
-        Math.round(
-          ((totalDays - goal_progress.days_remaining) / totalDays) * 100,
-        ),
-      ),
-    );
+    if (goal_progress.target_date && goal_progress.start_date) {
+      const totalDays =
+        (new Date(goal_progress.target_date).getTime() -
+          new Date(goal_progress.start_date).getTime()) /
+        (1000 * 60 * 60 * 24);
+      if (totalDays > 0) {
+        return Math.min(
+          100,
+          Math.max(
+            0,
+            Math.round(
+              ((totalDays - goal_progress.days_remaining) / totalDays) * 100,
+            ),
+          ),
+        );
+      }
+    }
+    return 50;
   }, [goal_progress]);
 
   const goalLabel =

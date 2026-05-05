@@ -76,10 +76,6 @@ class NutritionLogEntity(Base):
     carbs_g: Mapped[float] = mapped_column(Float, nullable=False)
     fat_g: Mapped[float] = mapped_column(Float, nullable=False)
     water_liters: Mapped[float] = mapped_column(Float, nullable=False)
-    body_weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
-    body_fat_rate_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
-    muscle_weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
-    waist_cm: Mapped[float | None] = mapped_column(Float, nullable=True)
     notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -100,7 +96,7 @@ class BodyMetricEntity(Base):
     __tablename__ = "body_metrics"
 
     id: Mapped[int] = mapped_column(PK_TYPE, primary_key=True, autoincrement=True)
-    log_date: Mapped[date] = mapped_column(Date, index=True, unique=True, nullable=False)
+    log_date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
     body_weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
     body_fat_rate_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     body_fat_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -128,6 +124,7 @@ class BodyMetricEntity(Base):
     inbody_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     bmr_kcal: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Meta
+    source: Mapped[str] = mapped_column(String(32), default="manual", nullable=False)
     source_asset_id: Mapped[int | None] = mapped_column(ForeignKey("knowledge_assets.id", ondelete="SET NULL"), index=True, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

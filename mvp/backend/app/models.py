@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ExerciseSet(BaseModel):
@@ -65,16 +65,14 @@ class ReadinessLogUpdate(BaseModel):
 
 
 class NutritionLogCreate(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     log_date: date
     calories_kcal: int = Field(ge=0)
     protein_g: float = Field(ge=0)
     carbs_g: float = Field(ge=0)
     fat_g: float = Field(ge=0)
     water_liters: float = Field(ge=0)
-    body_weight_kg: float | None = Field(default=None, ge=0)
-    body_fat_rate_pct: float | None = Field(default=None, ge=0, le=100)
-    muscle_weight_kg: float | None = Field(default=None, ge=0)
-    waist_cm: float | None = Field(default=None, ge=0)
     notes: str = ""
 
 
@@ -90,10 +88,6 @@ class NutritionLogUpdate(BaseModel):
     carbs_g: float | None = Field(default=None, ge=0)
     fat_g: float | None = Field(default=None, ge=0)
     water_liters: float | None = Field(default=None, ge=0)
-    body_weight_kg: float | None = Field(default=None, ge=0)
-    body_fat_rate_pct: float | None = Field(default=None, ge=0, le=100)
-    muscle_weight_kg: float | None = Field(default=None, ge=0)
-    waist_cm: float | None = Field(default=None, ge=0)
     notes: str | None = None
 
 
@@ -140,6 +134,7 @@ class BodyMetricCreate(BaseModel):
     bmr_kcal: int | None = Field(default=None, ge=0)
     # Profile
     height_cm: float | None = Field(default=None, ge=50, le=250)
+    source: str = "manual"
     source_asset_id: int | None = None
 
 
@@ -267,6 +262,7 @@ class ChangeProposal(BaseModel):
 
 class ApproveProposalRequest(BaseModel):
     approved_by: Literal["user"] = "user"
+    rejected: bool = False
     confirm_token: str | None = None
 
 
@@ -290,6 +286,9 @@ class ChatRequest(BaseModel):
     messages: list[ChatMessage]
     enable_rag: bool = True
     enable_profile: bool = True
+    thinking_mode: bool = False
+    model: str | None = None
+    images: list[str] | None = None  # base64-encoded images for vision
 
 
 class ProfileExtractionResponse(BaseModel):

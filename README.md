@@ -17,12 +17,6 @@
 
 ---
 
-<blockquote>
-<p><strong>Note:</strong> This project is applying for <a href="https://mimo.cool">MIMO</a> free credits to support ongoing AI infrastructure costs. Strength Agent uses LLM-powered chat to help users log workouts, track nutrition, set fitness goals, and analyze body composition — making AI-assisted fitness coaching accessible to everyone.</p>
-</blockquote>
-
----
-
 <img src="./frontend.png" alt="Strength Agent Dashboard" width="100%" style="border-radius:12px" />
 
 ---
@@ -189,9 +183,3 @@ MIT
 | 迁移策略 | 启动时自动执行幂等 SQLite 表重建迁移，零停机                       |
 | 设计系统 | OKLCH 色彩空间 + 7 状态覆盖 + CSS 过渡动画                         |
 | 类型安全 | TypeScript 严格模式 + Pydantic v2 校验，前后端接口同构             |
-
----
-
-<p align="center">
-  <sub>Built with care for the MIMO community. AI credits help us ship faster.</sub>
-</p>

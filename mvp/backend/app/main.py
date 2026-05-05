@@ -790,7 +790,10 @@ def _weight_trend_weekly_kg(db: Session, end_date: date) -> float | None:
 def _build_goal_progress(db: Session, config: GoalConfig) -> GoalProgress:
     latest_weight_row = db.scalar(
         select(BodyMetricEntity)
-        .where(BodyMetricEntity.body_weight_kg.is_not(None))
+        .where(
+            BodyMetricEntity.body_weight_kg.is_not(None),
+            BodyMetricEntity.log_date <= date.today(),
+        )
         .order_by(desc(BodyMetricEntity.log_date), desc(BodyMetricEntity.id))
     )
 
@@ -2406,6 +2409,7 @@ def get_dashboard(db: Session = Depends(get_db)):
         .where(
             BodyMetricEntity.body_weight_kg.is_not(None),
             BodyMetricEntity.log_date >= seven_days_ago,
+            BodyMetricEntity.log_date <= today,
         )
         .order_by(BodyMetricEntity.log_date.asc(), BodyMetricEntity.id.asc())
     ).all()
@@ -2427,7 +2431,10 @@ def get_dashboard(db: Session = Depends(get_db)):
     thirty_days_ago = today.fromordinal(today.toordinal() - 29)
     recent_metrics = db.scalars(
         select(BodyMetricEntity)
-        .where(BodyMetricEntity.log_date >= thirty_days_ago)
+        .where(
+            BodyMetricEntity.log_date >= thirty_days_ago,
+            BodyMetricEntity.log_date <= today,
+        )
         .order_by(desc(BodyMetricEntity.log_date), desc(BodyMetricEntity.id))
     ).all()
 

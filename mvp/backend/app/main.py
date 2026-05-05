@@ -1916,22 +1916,26 @@ async def chat(payload: ChatRequest, db: Session = Depends(get_db)):
 
     # Determine model: user override > cost router > env default
     # When thinking_mode is off (fast mode), force a non-reasoning model
+    # When thinking_mode is on, prefer L2 (reasoner) for deep thinking
     thinking_enabled = payload.thinking_mode
     if payload.model:
         model = payload.model
-        route_tier = "l1"
+        route_tier = "l2" if "reasoner" in model.lower() else "l1"
         route_reason = "user selected model"
         if not thinking_enabled and "reasoner" in model.lower():
             model = cost_config.model_l1
+            route_tier = "l1"
             route_reason = "fast mode override (reasoner → flash)"
     else:
-        needs_complex = any(k in last_msg.lower() for k in ["plateau", "injury", "deload", "complex", "conflict"])
         route_tier, route_reason = pick_tier(
-            config=cost_config, spent_rmb=spent, preference="auto", needs_complex_reasoning=needs_complex,
+            config=cost_config, spent_rmb=spent,
+            preference="l2" if thinking_enabled else "auto",
+            needs_complex_reasoning=thinking_enabled,
         )
         model = cost_config.model_l2 if route_tier == "l2" else cost_config.model_l1
         if not thinking_enabled and route_tier == "l2":
             model = cost_config.model_l1
+            route_tier = "l1"
             route_reason = "fast mode override (L2 → L1)"
 
     # Build system prompt

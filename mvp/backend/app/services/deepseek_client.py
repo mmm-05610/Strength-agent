@@ -64,15 +64,15 @@ class DeepSeekClient:
             "max_tokens": max_tokens,
             "temperature": temperature,
         }
-        if not thinking_enabled:
-            payload["thinking"] = {"type": "disabled"}
+        if thinking_enabled:
+            payload["thinking"] = {"type": "enabled"}
         if tools:
             payload["tools"] = tools
             if tool_choice:
                 payload["tool_choice"] = tool_choice
 
         response = requests.post(
-            f"{self.base_url.rstrip('/')}/chat/completions",
+            f"{self.base_url.rstrip('/')}/v1/chat/completions",
             json=payload,
             headers=self._build_headers(),
             timeout=60,
@@ -118,15 +118,15 @@ class DeepSeekClient:
             "stream": True,
             "stream_options": {"include_usage": True},
         }
-        if not thinking_enabled:
-            payload["thinking"] = {"type": "disabled"}
+        if thinking_enabled:
+            payload["thinking"] = {"type": "enabled"}
         if tools:
             payload["tools"] = tools
             if tool_choice:
                 payload["tool_choice"] = tool_choice
 
         response = requests.post(
-            f"{self.base_url.rstrip('/')}/chat/completions",
+            f"{self.base_url.rstrip('/')}/v1/chat/completions",
             json=payload,
             headers=self._build_headers(),
             timeout=120,

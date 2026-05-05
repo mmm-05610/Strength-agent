@@ -11,7 +11,7 @@ disable_reranker_under_low_budget: true
 semantic_cache_ttl_hours: 24
 weekly_report_cache_days: 7
 duplicate_question_window_minutes: 30
-model_l1: deepseek-v4-flash
+model_l1: deepseek-chat
 model_l2: deepseek-reasoner
 price_l1_input_per_1m_rmb: 0.8
 price_l1_output_per_1m_rmb: 1.6

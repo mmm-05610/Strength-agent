@@ -106,6 +106,7 @@ class KnowledgeAsset(KnowledgeAssetCreate):
 
 class BodyMetricCreate(BaseModel):
     log_date: date
+    measured_at: datetime | None = None
     body_weight_kg: float | None = Field(default=None, ge=0)
     body_fat_rate_pct: float | None = Field(default=None, ge=0, le=100)
     body_fat_kg: float | None = Field(default=None, ge=0)
@@ -174,12 +175,14 @@ class BodyMetric(BaseModel):
     body_assessment: str = ""
     # Meta
     source_asset_id: int | None = None
+    measured_at: datetime | None = None
     created_at: datetime | None = None
     image_url: str | None = None
 
 
 class BodyMetricUpdate(BaseModel):
     log_date: date | None = None
+    measured_at: datetime | None = None
     body_weight_kg: float | None = Field(default=None, ge=0)
     body_fat_rate_pct: float | None = Field(default=None, ge=0, le=100)
     body_fat_kg: float | None = Field(default=None, ge=0)

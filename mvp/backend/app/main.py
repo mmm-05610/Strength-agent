@@ -151,7 +151,8 @@ def on_startup() -> None:
 
 
 def _migrate_body_metrics_schema(db: Session) -> None:
-    """v0.3.0: 去掉 body_metrics.log_date UNIQUE + 新增 source 列"""
+    """v0.3.0: 去掉 body_metrics.log_date UNIQUE + 新增 source 列
+       v0.3.1: 新增 measured_at 列"""
     engine = db.get_bind()
     if engine.dialect.name != "sqlite":
         return
@@ -161,63 +162,73 @@ def _migrate_body_metrics_schema(db: Session) -> None:
         cur = raw.cursor()
         cur.execute("PRAGMA table_info(body_metrics)")
         cols = [r[1] for r in cur.fetchall()]
-        if "source" in cols:
-            return  # 已迁移
 
-        cur.executescript("""
-            CREATE TABLE body_metrics_new (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                log_date DATE NOT NULL,
-                body_weight_kg FLOAT,
-                body_fat_rate_pct FLOAT,
-                body_fat_kg FLOAT,
-                muscle_weight_kg FLOAT,
-                skeletal_muscle_kg FLOAT,
-                body_water_kg FLOAT,
-                protein_kg FLOAT,
-                minerals_kg FLOAT,
-                left_upper_muscle_kg FLOAT,
-                right_upper_muscle_kg FLOAT,
-                left_lower_muscle_kg FLOAT,
-                right_lower_muscle_kg FLOAT,
-                trunk_muscle_kg FLOAT,
-                left_upper_fat_kg FLOAT,
-                right_upper_fat_kg FLOAT,
-                left_lower_fat_kg FLOAT,
-                right_lower_fat_kg FLOAT,
-                trunk_fat_kg FLOAT,
-                waist_cm FLOAT,
-                hip_cm FLOAT,
-                inbody_score INTEGER,
-                bmr_kcal INTEGER,
-                source VARCHAR(32) NOT NULL DEFAULT 'manual',
-                source_asset_id INTEGER REFERENCES knowledge_assets(id) ON DELETE SET NULL,
-                created_at DATETIME NOT NULL DEFAULT (datetime('now'))
-            );
-            INSERT INTO body_metrics_new (
-                id, log_date, body_weight_kg, body_fat_rate_pct, body_fat_kg,
-                muscle_weight_kg, skeletal_muscle_kg, body_water_kg, protein_kg,
-                minerals_kg, left_upper_muscle_kg, right_upper_muscle_kg,
-                left_lower_muscle_kg, right_lower_muscle_kg, trunk_muscle_kg,
-                left_upper_fat_kg, right_upper_fat_kg, left_lower_fat_kg,
-                right_lower_fat_kg, trunk_fat_kg, waist_cm, hip_cm,
-                inbody_score, bmr_kcal, source_asset_id, created_at
-            )
-            SELECT
-                id, log_date, body_weight_kg, body_fat_rate_pct, body_fat_kg,
-                muscle_weight_kg, skeletal_muscle_kg, body_water_kg, protein_kg,
-                minerals_kg, left_upper_muscle_kg, right_upper_muscle_kg,
-                left_lower_muscle_kg, right_lower_muscle_kg, trunk_muscle_kg,
-                left_upper_fat_kg, right_upper_fat_kg, left_lower_fat_kg,
-                right_lower_fat_kg, trunk_fat_kg, waist_cm, hip_cm,
-                inbody_score, bmr_kcal, source_asset_id, created_at
-            FROM body_metrics;
-            DROP TABLE body_metrics;
-            ALTER TABLE body_metrics_new RENAME TO body_metrics;
-            CREATE INDEX IF NOT EXISTS ix_body_metrics_log_date ON body_metrics(log_date);
-            CREATE INDEX IF NOT EXISTS ix_body_metrics_source_asset_id ON body_metrics(source_asset_id);
-        """)
-        raw.commit()
+        # v0.3.0: 全量重建 — 新增 source 列, 去掉 UNIQUE
+        if "source" not in cols:
+            cur.executescript("""
+                CREATE TABLE body_metrics_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    log_date DATE NOT NULL,
+                    body_weight_kg FLOAT,
+                    body_fat_rate_pct FLOAT,
+                    body_fat_kg FLOAT,
+                    muscle_weight_kg FLOAT,
+                    skeletal_muscle_kg FLOAT,
+                    body_water_kg FLOAT,
+                    protein_kg FLOAT,
+                    minerals_kg FLOAT,
+                    left_upper_muscle_kg FLOAT,
+                    right_upper_muscle_kg FLOAT,
+                    left_lower_muscle_kg FLOAT,
+                    right_lower_muscle_kg FLOAT,
+                    trunk_muscle_kg FLOAT,
+                    left_upper_fat_kg FLOAT,
+                    right_upper_fat_kg FLOAT,
+                    left_lower_fat_kg FLOAT,
+                    right_lower_fat_kg FLOAT,
+                    trunk_fat_kg FLOAT,
+                    waist_cm FLOAT,
+                    hip_cm FLOAT,
+                    inbody_score INTEGER,
+                    bmr_kcal INTEGER,
+                    source VARCHAR(32) NOT NULL DEFAULT 'manual',
+                    source_asset_id INTEGER REFERENCES knowledge_assets(id) ON DELETE SET NULL,
+                    measured_at DATETIME NOT NULL DEFAULT (datetime('now')),
+                    created_at DATETIME NOT NULL DEFAULT (datetime('now'))
+                );
+                INSERT INTO body_metrics_new (
+                    id, log_date, body_weight_kg, body_fat_rate_pct, body_fat_kg,
+                    muscle_weight_kg, skeletal_muscle_kg, body_water_kg, protein_kg,
+                    minerals_kg, left_upper_muscle_kg, right_upper_muscle_kg,
+                    left_lower_muscle_kg, right_lower_muscle_kg, trunk_muscle_kg,
+                    left_upper_fat_kg, right_upper_fat_kg, left_lower_fat_kg,
+                    right_lower_fat_kg, trunk_fat_kg, waist_cm, hip_cm,
+                    inbody_score, bmr_kcal, source_asset_id, measured_at, created_at
+                )
+                SELECT
+                    id, log_date, body_weight_kg, body_fat_rate_pct, body_fat_kg,
+                    muscle_weight_kg, skeletal_muscle_kg, body_water_kg, protein_kg,
+                    minerals_kg, left_upper_muscle_kg, right_upper_muscle_kg,
+                    left_lower_muscle_kg, right_lower_muscle_kg, trunk_muscle_kg,
+                    left_upper_fat_kg, right_upper_fat_kg, left_lower_fat_kg,
+                    right_lower_fat_kg, trunk_fat_kg, waist_cm, hip_cm,
+                    inbody_score, bmr_kcal, source_asset_id, created_at as measured_at, created_at
+                FROM body_metrics;
+                DROP TABLE body_metrics;
+                ALTER TABLE body_metrics_new RENAME TO body_metrics;
+                CREATE INDEX IF NOT EXISTS ix_body_metrics_log_date ON body_metrics(log_date);
+                CREATE INDEX IF NOT EXISTS ix_body_metrics_source_asset_id ON body_metrics(source_asset_id);
+            """)
+            raw.commit()
+
+        # v0.3.1: 增量 — 新增 measured_at 列
+        cur.execute("PRAGMA table_info(body_metrics)")
+        cols = [r[1] for r in cur.fetchall()]
+        if "measured_at" not in cols:
+            cur.execute("ALTER TABLE body_metrics ADD COLUMN measured_at DATETIME")
+            cur.execute("UPDATE body_metrics SET measured_at = created_at")
+            cur.execute("CREATE INDEX IF NOT EXISTS ix_body_metrics_measured_at ON body_metrics(measured_at)")
+            raw.commit()
     finally:
         raw.close()
 
@@ -460,6 +471,7 @@ def _to_body_metric_schema(item: BodyMetricEntity, asset: KnowledgeAssetEntity |
         whr=whr,
         body_assessment=assessment,
         source_asset_id=item.source_asset_id,
+        measured_at=item.measured_at,
         created_at=item.created_at,
     )
 
@@ -483,6 +495,7 @@ def _get_setting_standalone(key: str, default=None):
 def _insert_body_metric(
     db: Session,
     log_date: date,
+    measured_at: datetime | None = None,
     body_weight_kg: float | None = None,
     body_fat_rate_pct: float | None = None,
     body_fat_kg: float | None = None,
@@ -510,6 +523,7 @@ def _insert_body_metric(
 ) -> BodyMetricEntity:
     item = BodyMetricEntity(
         log_date=log_date,
+        measured_at=measured_at or datetime.now(timezone.utc),
         body_weight_kg=body_weight_kg,
         body_fat_rate_pct=body_fat_rate_pct,
         body_fat_kg=body_fat_kg,
@@ -547,7 +561,8 @@ async def _action_body_metric_upsert(payload: BodyMetricCreate, db: Session) -> 
     if payload.height_cm is not None:
         set_setting(db, "height_cm", payload.height_cm)
     item = _insert_body_metric(
-        db, log_date=payload.log_date, body_weight_kg=payload.body_weight_kg,
+        db, log_date=payload.log_date, measured_at=payload.measured_at,
+        body_weight_kg=payload.body_weight_kg,
         body_fat_rate_pct=payload.body_fat_rate_pct, body_fat_kg=payload.body_fat_kg,
         muscle_weight_kg=payload.muscle_weight_kg, skeletal_muscle_kg=payload.skeletal_muscle_kg,
         body_water_kg=payload.body_water_kg, protein_kg=payload.protein_kg,
@@ -765,7 +780,7 @@ def _weight_trend_weekly_kg(db: Session, end_date: date) -> float | None:
             BodyMetricEntity.log_date >= start_window,
             BodyMetricEntity.log_date <= end_date,
         )
-        .order_by(BodyMetricEntity.log_date.asc(), BodyMetricEntity.id.asc())
+        .order_by(BodyMetricEntity.log_date.asc(), BodyMetricEntity.measured_at.asc())
     ).all()
 
     if len(rows) < 2:
@@ -794,7 +809,7 @@ def _build_goal_progress(db: Session, config: GoalConfig) -> GoalProgress:
             BodyMetricEntity.body_weight_kg.is_not(None),
             BodyMetricEntity.log_date <= date.today(),
         )
-        .order_by(desc(BodyMetricEntity.log_date), desc(BodyMetricEntity.id))
+        .order_by(desc(BodyMetricEntity.log_date), desc(BodyMetricEntity.measured_at))
     )
 
     current_weight = float(latest_weight_row.body_weight_kg) if latest_weight_row else float(config.start_weight_kg)
@@ -1191,7 +1206,7 @@ def list_body_metrics(days: int = Query(default=90, ge=1, le=365), db: Session =
     rows = db.scalars(
         select(BodyMetricEntity)
         .where(BodyMetricEntity.log_date >= start_window, BodyMetricEntity.log_date <= end_date)
-        .order_by(BodyMetricEntity.log_date.asc(), BodyMetricEntity.id.asc())
+        .order_by(BodyMetricEntity.log_date.asc(), BodyMetricEntity.measured_at.asc())
     ).all()
 
     asset_ids = sorted({r.source_asset_id for r in rows if r.source_asset_id})
@@ -1211,6 +1226,7 @@ def upsert_body_metric(payload: BodyMetricCreate, db: Session = Depends(get_db))
     item = _insert_body_metric(
         db,
         log_date=payload.log_date,
+        measured_at=payload.measured_at,
         body_weight_kg=payload.body_weight_kg,
         body_fat_rate_pct=payload.body_fat_rate_pct,
         body_fat_kg=payload.body_fat_kg,
@@ -1234,6 +1250,7 @@ def upsert_body_metric(payload: BodyMetricCreate, db: Session = Depends(get_db))
         inbody_score=payload.inbody_score,
         bmr_kcal=payload.bmr_kcal,
         source_asset_id=payload.source_asset_id,
+        source=payload.source,
     )
     asset = db.get(KnowledgeAssetEntity, item.source_asset_id) if item.source_asset_id else None
     return _to_body_metric_schema(item, asset)
@@ -1245,7 +1262,7 @@ def update_body_metric(metric_id: int, payload: BodyMetricUpdate, db: Session = 
     if item is None:
         raise HTTPException(status_code=404, detail="Body metric not found")
     for field_name in (
-        "log_date", "body_weight_kg", "body_fat_rate_pct", "body_fat_kg",
+        "log_date", "measured_at", "body_weight_kg", "body_fat_rate_pct", "body_fat_kg",
         "muscle_weight_kg", "skeletal_muscle_kg", "body_water_kg",
         "protein_kg", "minerals_kg",
         "left_upper_muscle_kg", "right_upper_muscle_kg",
@@ -1808,7 +1825,7 @@ def _execute_tool(db_session_factory, tool_name: str, tool_args: dict[str, Any])
         if tool_name == "get_dashboard_data":
             latest_nutrition = session.scalar(select(NutritionLogEntity).order_by(desc(NutritionLogEntity.log_date), desc(NutritionLogEntity.id)))
             latest_readiness = session.scalar(select(ReadinessLogEntity).order_by(desc(ReadinessLogEntity.log_date), desc(ReadinessLogEntity.id)))
-            latest_body_metric = session.scalar(select(BodyMetricEntity).order_by(desc(BodyMetricEntity.log_date), desc(BodyMetricEntity.id)))
+            latest_body_metric = session.scalar(select(BodyMetricEntity).order_by(desc(BodyMetricEntity.log_date), desc(BodyMetricEntity.measured_at)))
             goal_config = _load_goal_config(session)
             goal_progress = _build_goal_progress(session, goal_config)
             height_cm_val = get_setting(session, "height_cm")
@@ -2411,7 +2428,7 @@ def get_dashboard(db: Session = Depends(get_db)):
             BodyMetricEntity.log_date >= seven_days_ago,
             BodyMetricEntity.log_date <= today,
         )
-        .order_by(BodyMetricEntity.log_date.asc(), BodyMetricEntity.id.asc())
+        .order_by(BodyMetricEntity.log_date.asc(), BodyMetricEntity.measured_at.asc())
     ).all()
 
     weight_by_date: dict[str, float] = {}
@@ -2435,7 +2452,7 @@ def get_dashboard(db: Session = Depends(get_db)):
             BodyMetricEntity.log_date >= thirty_days_ago,
             BodyMetricEntity.log_date <= today,
         )
-        .order_by(desc(BodyMetricEntity.log_date), desc(BodyMetricEntity.id))
+        .order_by(desc(BodyMetricEntity.log_date), desc(BodyMetricEntity.measured_at))
     ).all()
 
     height_cm_raw = get_setting(db, "height_cm", 170.0)
@@ -2485,6 +2502,8 @@ def get_dashboard(db: Session = Depends(get_db)):
             "whr": _whr,
             "body_assessment": _assessment,
             "height_cm": float(height_cm_raw) if height_cm_raw else None,
+            "measured_at": str(recent_metrics[0].measured_at) if recent_metrics[0].measured_at else None,
+            "source": recent_metrics[0].source,
         }
     else:
         body_metrics = {
@@ -2499,6 +2518,7 @@ def get_dashboard(db: Session = Depends(get_db)):
             "inbody_score": None, "bmr_kcal": None,
             "bmi": None, "smi": None, "whr": None, "body_assessment": "",
             "height_cm": None,
+            "measured_at": None, "source": "manual",
         }
 
     # Cost status

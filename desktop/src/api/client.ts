@@ -90,6 +90,8 @@ export interface DashboardData {
     whr: number | null;
     body_assessment: string;
     height_cm: number | null;
+    measured_at: string | null;
+    source: string;
   };
   cost_status: {
     monthly_budget_rmb: number;
@@ -413,6 +415,9 @@ export interface BodyMetricHistory {
   smi: number | null;
   whr: number | null;
   height_cm: number | null;
+  measured_at: string | null;
+  created_at: string | null;
+  source: string;
 }
 
 export async function fetchBodyMetrics(

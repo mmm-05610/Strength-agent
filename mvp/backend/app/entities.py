@@ -124,6 +124,7 @@ class BodyMetricEntity(Base):
     inbody_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     bmr_kcal: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Meta
+    measured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
     source: Mapped[str] = mapped_column(String(32), default="manual", nullable=False)
     source_asset_id: Mapped[int | None] = mapped_column(ForeignKey("knowledge_assets.id", ondelete="SET NULL"), index=True, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
